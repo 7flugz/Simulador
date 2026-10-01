@@ -1,0 +1,611 @@
+<!DOCTYPE html><html lang="pt-PT"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><title>Simulador</title><link rel="icon" type="image/svg+xml" href="favicon.svg"><script>try{document.documentElement.setAttribute('data-theme',localStorage.getItem('ambarsal_theme')||'verde')}catch(e){}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script type="module">
+/* ===== Firebase (SDK modular v12, via CDN -- sem "compat"/v8) ===== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import {
+  getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+  signOut, setPersistence, browserLocalPersistence
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import {
+  getFirestore, collection, doc, setDoc, getDoc, getDocs, updateDoc, deleteDoc,
+  query, where, limit, onSnapshot, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDSD204sw2OVJbGQBY6Td-Nm0tsJPUgazM",
+  authDomain: "simulador-6d7e4.firebaseapp.com",
+  projectId: "simulador-6d7e4",
+  storageBucket: "simulador-6d7e4.firebasestorage.app",
+  messagingSenderId: "557033734440",
+  appId: "1:557033734440:web:d4326151dfd1e3ca8f501d"
+};
+
+window.FBReady = (async () => {
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  try { await setPersistence(auth, browserLocalPersistence); } catch (e) {}
+  return {
+    auth, db,
+    configured: !!firebaseConfig.apiKey,
+    onAuthStateChanged: cb => onAuthStateChanged(auth, cb),
+    createUser: (email, pw) => createUserWithEmailAndPassword(auth, email, pw),
+    signIn: (email, pw) => signInWithEmailAndPassword(auth, email, pw),
+    signOutUser: () => signOut(auth),
+    doc: (col, id) => doc(db, col, id),
+    newDoc: col => doc(collection(db, col)),
+    usersCol: collection(db, 'users'),
+    scenariosCol: collection(db, 'scenarios'),
+    setDoc, getDoc, getDocs, updateDoc, deleteDoc, query, where, limit, onSnapshot, serverTimestamp
+  };
+})().catch(err => ({ fatal: err }));
+</script>
+<style>@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+:root{box-sizing:border-box;color-scheme:dark;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#18181B;--cd:#27272A;--cd2:#2E2E33;--bd:#3F3F46;--in:#3F3F46;--ac:#10B981;--ac-h:#059669;--ac-fg:#fff;--fg:#E4E4E7;--mu:#A1A1AA;--val:#F4F4F5;--ok:#059669;--bad:#DC2626;--warn:#D97706;--radius:10px;--radius-sm:8px;--shadow:0 1px 2px rgba(0,0,0,.35),0 8px 20px -10px rgba(0,0,0,.55)}
+:root[data-theme="preto"]{--bg:#000000;--cd:#121212;--cd2:#1C1C1E;--bd:#2C2C2E;--in:#1C1C1E;--ac:#E4E4E7;--ac-h:#FFFFFF;--ac-fg:#0A0A0A;--fg:#E4E4E4;--mu:#8E8E93;--val:#FFFFFF}
+:root[data-theme="branco"]{color-scheme:light;--bg:#F5F5F7;--cd:#FFFFFF;--cd2:#F0F1F3;--bd:#E2E4E9;--in:#F0F1F3;--ac:#14213D;--ac-h:#0B1526;--ac-fg:#fff;--fg:#1F2328;--mu:#6B7280;--val:#0B0E14;--shadow:0 1px 2px rgba(0,0,0,.06),0 10px 24px -12px rgba(0,0,0,.14)}
+:root[data-theme="vermelho"]{--ac:#E11D48;--ac-h:#BE123C}
+:root[data-theme="azul"]{--ac:#0EA5E9;--ac-h:#0284C7}
+:root[data-theme="rosa"]{--ac:#EC4899;--ac-h:#DB2777}
+:root[data-theme="roxo"]{--ac:#8B5CF6;--ac-h:#7C3AED}
+:root[data-theme="laranja"]{--ac:#EA580C;--ac-h:#C2410C}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}*{box-sizing:border-box}body{margin:0;background-color:var(--bg);background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320' viewBox='0 0 320 320'%3E%3Cline x1='30' y1='40' x2='140' y2='20' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='140' y1='20' x2='260' y2='45' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='260' y1='45' x2='300' y2='130' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='300' y1='130' x2='220' y2='110' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='220' y1='110' x2='150' y2='90' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='150' y1='90' x2='140' y2='20' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='30' y1='40' x2='60' y2='120' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='150' y1='90' x2='60' y2='120' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='60' y1='120' x2='20' y2='200' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='20' y1='200' x2='110' y2='190' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='110' y1='190' x2='150' y2='90' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='110' y1='190' x2='220' y2='110' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='220' y1='110' x2='210' y2='210' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='210' y1='210' x2='300' y2='130' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='210' y1='210' x2='300' y2='260' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='110' y1='190' x2='70' y2='290' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='20' y1='200' x2='70' y2='290' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='70' y1='290' x2='190' y2='300' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='190' y1='300' x2='110' y2='190' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Cline x1='190' y1='300' x2='210' y2='210' stroke='%23FAFAFA' stroke-opacity='0.035' stroke-width='1'/%3E%3Ccircle cx='30' cy='40' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='140' cy='20' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='260' cy='45' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='300' cy='130' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='220' cy='110' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='150' cy='90' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='60' cy='120' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='20' cy='200' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='110' cy='190' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='210' cy='210' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='300' cy='260' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='70' cy='290' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3Ccircle cx='190' cy='300' r='2.6' fill='%23FAFAFA' fill-opacity='0.045'/%3E%3C/svg%3E");background-repeat:repeat;background-size:320px 320px;color:var(--fg);font:400 15px/1.5 'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;transition:background-color .3s ease,color .3s ease}
+.app{display:block}main{max-width:1000px;margin:auto;padding:12px}h1{font-size:20px;font-weight:800;margin:4px 0 8px;color:var(--ac);letter-spacing:.2px}h4{margin:10px 0 4px;color:var(--val);font-weight:700}small{color:var(--mu)}b{color:var(--val);font-weight:700}
+nav{display:flex;flex-direction:column;gap:4px;margin:0}nav button{white-space:normal;width:100%;text-align:left}
+button{font:inherit;font-weight:500;padding:9px 14px;border:1px solid var(--bd);background:var(--cd2);color:var(--fg);border-radius:var(--radius-sm);cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease,box-shadow .15s ease}
+button:hover:not(:disabled){border-color:var(--ac)}
+button:disabled{opacity:.4;cursor:default}
+button:focus-visible{outline:2px solid var(--ac);outline-offset:1px}
+nav .on{background:var(--ac);color:var(--ac-fg);border-color:var(--ac);font-weight:600;box-shadow:0 4px 12px -4px rgba(0,0,0,.45)}
+button[data-act="save"],button[data-act^="apply:"],button[data-act="opt"]{background:var(--ac);color:var(--ac-fg);border-color:var(--ac);font-weight:600}
+button[data-act="save"]:hover:not(:disabled),button[data-act^="apply:"]:hover:not(:disabled),button[data-act="opt"]:hover:not(:disabled){background:var(--ac-h);border-color:var(--ac-h)}
+button[data-act="rep"],button[data-act="xlsx"]{background:transparent;border-color:var(--ac);color:var(--ac);font-weight:600}
+button[data-act="rep"]:hover:not(:disabled),button[data-act="xlsx"]:hover:not(:disabled){background:color-mix(in srgb, var(--ac) 12%, transparent)}
+button[data-act="out"]{background:transparent;border:1px solid var(--bd);color:#D4D4D8;font-weight:500;padding:6px 12px;margin-left:8px}
+button[data-act="out"]:hover:not(:disabled){border-color:var(--mu);background:rgba(255,255,255,.04);color:var(--val)}
+.kp{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}.kp>div,.k{background:var(--cd);border:1px solid var(--bd);border-radius:var(--radius);padding:10px 12px;box-shadow:var(--shadow);transition:background-color .3s ease,border-color .3s ease}.kp b{display:block;font-size:16px}
+.g{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin:6px 0}.g.m{grid-template-columns:repeat(auto-fill,minmax(90px,1fr))}
+label{display:block;font-size:12px;color:var(--mu);font-weight:500}input,select,textarea{width:100%;font:inherit;padding:8px 10px;border:1px solid transparent;background:var(--in);color:var(--val);border-radius:var(--radius-sm);transition:border-color .15s ease,box-shadow .15s ease}input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ac);box-shadow:0 0 0 3px color-mix(in srgb, var(--ac) 20%, transparent)}label.ck{display:flex;gap:6px;align-items:center;font-size:14px;color:var(--fg)}label.ck input,.ch input{width:auto}
+details,.cd{background:var(--cd);border:1px solid var(--bd);border-radius:var(--radius);padding:10px 12px;margin:8px 0;box-shadow:var(--shadow);transition:background-color .3s ease,border-color .3s ease}summary{font-weight:600;cursor:pointer;color:var(--val)}.sc{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px}td,th{border-bottom:1px solid var(--bd);padding:6px 8px;text-align:left;white-space:nowrap}th{color:var(--mu);font-weight:600;text-transform:uppercase;font-size:10.5px;letter-spacing:.05em}td input{min-width:70px}
+.sclist{max-height:340px;overflow-y:auto;display:grid;gap:8px;margin:8px 0;padding-right:2px}.scitem{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;background:var(--cd);border:1px solid var(--bd);border-radius:var(--radius);padding:8px 12px;box-shadow:var(--shadow)}.scitem small{color:var(--mu)}.scbtns{display:flex;gap:6px;flex-wrap:wrap}
+.bar{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;align-items:center}.bar input{flex:1}textarea{min-height:70px}.ch{display:flex;flex-wrap:wrap;gap:4px 12px}.ch label{color:var(--fg);font-size:13px;display:flex;gap:4px}
+.st{padding:12px 14px;border-radius:var(--radius);font-weight:700;margin:8px 0}.ok{background:var(--ok);color:#fff}.no{background:var(--bad);color:#fff}.w{color:#F87171}.cv{height:300px;margin:10px 0}
+.pill{display:inline-block;padding:3px 11px;border-radius:99px;border:1px solid var(--ac);color:var(--ac);font-size:13px;font-weight:600}.rd{background:var(--bad);color:#fff;border-color:var(--bad)}.am{background:var(--warn);color:#27272A;border-color:var(--warn)}.gr{background:var(--ok);color:#fff;border-color:var(--ok)}
+.al{padding:10px 12px;border-radius:var(--radius-sm);margin:6px 0;border-left:4px solid;font-size:14px;color:var(--fg)}.al.r{border-color:var(--bad);background:rgba(220,38,38,.12)}.al.a{border-color:var(--warn);background:rgba(217,119,6,.12)}#who{display:flex;gap:6px;flex-wrap:wrap;align-items:center}#who input,#who select{width:auto}
+.al.g{border-color:var(--ok);background:rgba(5,150,105,.12)}.dg{background:var(--bad);color:#fff;border-color:var(--bad)}#gate{display:none}body.gated #gate{display:flex;min-height:100vh;align-items:center;justify-content:center;padding:16px}body.gated main,body.gated .navwrap,body.gated .sidetoggle{display:none}.gb{width:100%;max-width:380px;background:var(--cd);border:1px solid var(--bd);border-radius:14px;padding:20px;display:grid;gap:10px;box-shadow:var(--shadow);transition:background-color .3s ease,border-color .3s ease}.tb{display:flex;gap:4px}.tb button{flex:1}.tb .on,.pr{background:var(--ac);color:var(--ac-fg);font-weight:700;border-color:var(--ac)}.tb .on:hover,.pr:hover{background:var(--ac-h)}.vw{background:transparent;border-color:var(--ac);color:var(--ac);font-weight:700;padding:10px}.vw:hover{background:color-mix(in srgb, var(--ac) 12%, transparent)}
+.hb{background:var(--cd);border:1px solid var(--bd);border-radius:var(--radius);padding:10px 12px;margin:8px 0;box-shadow:var(--shadow)}.hbt{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px}.hbt span{color:var(--mu);font-size:13px}
+.hbtrack{position:relative;height:10px;border-radius:99px;background:var(--bg);border:1px solid var(--bd);overflow:visible}.hbfill{height:100%;border-radius:99px;transition:width .2s}.hbmark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--val)}
+.hb.ok .hbfill{background:var(--ok)}.hb.toxic .hbfill{background:var(--bad)}.hb.progress .hbfill{background:var(--warn)}.hb small{color:var(--mu);display:block;margin-top:4px}
+.navtoggle{position:fixed;top:10px;right:10px;z-index:90;display:inline-flex;align-items:center;gap:8px;font-weight:600;background:var(--cd);border:1px solid var(--ac);color:var(--ac);box-shadow:var(--shadow)}.navtoggle:hover{background:color-mix(in srgb, var(--ac) 12%, transparent)}
+.sidetoggle{display:none}
+.navwrap{position:fixed;top:0;left:0;bottom:0;width:250px;max-width:82vw;background:var(--cd);border-right:1px solid var(--bd);box-shadow:var(--shadow);transform:translateX(-100%);transition:transform .3s ease,background-color .3s ease,border-color .3s ease;z-index:80;overflow-y:auto}
+.navwrap.open{transform:translateX(0)}
+.navwrap>.navclip{padding:18px 14px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;transition:opacity .2s ease}
+.sidebar-foot{margin-top:auto;padding-top:14px;border-top:1px solid var(--bd);transition:border-color .3s ease}
+.sidebar-brand{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--bd);transition:border-color .3s ease}
+.sidebar-brand h1{margin:0;font-size:16px;line-height:1.35}
+.navwrap nav{margin-top:0}
+.themegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin:10px 0}
+.themecard{display:flex;flex-direction:column;align-items:center;gap:8px;padding:14px 10px}
+.themecard.on{border-color:var(--ac);box-shadow:0 0 0 2px color-mix(in srgb, var(--ac) 35%, transparent)}
+.themeswatch{width:40px;height:40px;border-radius:99px;display:flex;align-items:center;justify-content:center;border:1px solid var(--bd);overflow:hidden}
+.themeswatch>span{width:18px;height:18px;border-radius:50%;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.25) inset}
+.themecard *{pointer-events:none}
+@media (min-width:769px){
+ .app{display:flex;align-items:flex-start}
+ .navtoggle{display:none !important}
+ .navwrap{position:sticky;top:0;left:auto;width:250px;flex:0 0 auto;height:100vh;transform:none !important;box-shadow:none;overflow:hidden;transition:width .3s ease,border-right-width .3s ease,background-color .3s ease,border-color .3s ease}
+ main{flex:1;min-width:0}
+ .sidetoggle{display:inline-flex;align-items:center;justify-content:center;position:fixed;top:14px;left:264px;z-index:95;width:34px;height:34px;padding:0;font-size:15px;font-weight:600;background:var(--cd);border:1px solid var(--ac);color:var(--ac);box-shadow:var(--shadow);transition:left .3s ease,background-color .3s ease,border-color .3s ease}
+ .sidetoggle:hover{background:color-mix(in srgb, var(--ac) 12%, transparent)}
+ .app.sidebar-collapsed .navwrap{width:0;border-right-width:0}
+ .app.sidebar-collapsed .navwrap>.navclip{opacity:0}
+ .app.sidebar-collapsed .sidetoggle{left:14px}
+}
+#rep{display:none;--cd:#f4f6fa;--fg:#111;--bd:#cfd6e2;--mu:#556;color:#111}
+@media (max-width:768px){
+ main{padding:56px 8px 8px}
+ h1{font-size:17px}
+ body{font-size:14px}
+ .g,.g.m,.kp{grid-template-columns:1fr}
+ nav button{padding:10px 12px;font-size:13px}
+ button{padding:10px 14px;min-height:40px}
+ input,select,textarea{padding:8px;min-height:40px}
+ label.ck input,.ch input{min-height:auto}
+ .bar{flex-direction:column;align-items:stretch}
+ .bar input{width:100%}
+ .bar button{width:100%}
+ #who{flex-direction:column;align-items:flex-start;gap:8px}
+ .scitem{flex-direction:column;align-items:flex-start}
+ .scbtns{width:100%}
+ .scbtns button{flex:1}
+ table{font-size:12px}
+ td,th{padding:7px 6px}
+ .kp>div,.k{padding:8px 10px}
+ .gb{max-width:100%;margin:0 8px}
+ .tb button{padding:10px}
+}
+@media print{*{animation:none!important;transition:none!important}@page{size:A4;margin:10mm}html,body{background:#fff!important;color:#111!important;font-size:11px;overflow:visible!important;height:auto!important}main,#gate,nav,.navwrap,.sidetoggle{display:none!important}#rep{display:block!important;position:static!important;overflow:visible!important}#rep,#rep *{-webkit-print-color-adjust:exact;print-color-adjust:exact}#rep h2{font-size:17px;margin:0 0 4px}#rep p{margin:3px 0}#rep .kp{grid-template-columns:repeat(4,1fr)}#rep .st,#rep .al,#rep .kp>div,#rep svg,#rep .cd{break-inside:avoid;page-break-inside:avoid}#rep .al.r{background:#fde8ea}#rep .al.a{background:#fff4d6}#rep .al{font-size:10.5px;padding:4px 8px;margin:3px 0}#rep .st{padding:6px 10px}#rep .k small{font-size:9px}#rep .k b{font-size:12px}#rep h4{margin:8px 0 2px}#rep svg{max-width:100%;height:auto;display:block}}
+</style></head><body class="gated"><div id="gate"></div><div class="app">
+<button class="sidetoggle" id="sideToggle" type="button" aria-label="Colapsar ou expandir o menu">☰</button>
+<div class="navwrap" id="navwrap"><div class="navclip">
+<div class="sidebar-brand"><h1>Simulador de apoio à decisão - Âmbar e Sal</h1></div>
+<nav><button data-t="cfg">Configurar empresa</button><button data-t="p1">P1 Força de vendas</button><button data-t="p2">P2 Marketing</button><button data-t="p3">P3 Promoções</button><button data-t="res">Resultados</button><button data-t="cmp">Comparar cenários</button><button data-t="pres">Pressupostos e fórmulas</button><button data-t="usr">Utilizadores</button><button data-t="adm">Administração</button><button data-t="set">Definições</button></nav>
+<div class="sidebar-foot"><div id="who"></div></div>
+</div></div>
+<main>
+<button class="navtoggle" id="navToggle" type="button">☰ Menu</button>
+<div id="msg"></div><div id="sum"></div><div class="bar"><button data-act="opt" id="ob">✦ Sugerir combinação ideal</button><button data-act="rep">Exportar relatório executivo (PDF)</button><button data-act="xlsx">Exportar Excel (.xlsx)</button></div>
+<div id="view"></div></main></div><div id="rep"></div><script>
+const DATA={"hist": {"2024": [130972.16, 136137.08, 161402.06, 173124.95, 203523.89, 205453.81, 189672.28, 120164.94, 165334.93, 164704.06, 217445.85, 227158.18], "2025": [133254.99, 139062.29, 164116.96, 188659.52, 204591.06, 196834.19, 203922.98, 130554.38, 189749.15, 189301.54, 248261.87, 250165.23], "2026": [137548.77, 148094.68, 174348.12, 189346.6, 216489.35, 210323.06]}, "catm": {"2024": {"1": {"Barbearia": 3260.59, "Cabelo": 25104.13, "Cofres de oferta": 1119.66, "Cuidado de corpo": 18471.75, "Cuidado de rosto": 35133.56, "Estética profissional": 11768.99, "Maquilhagem": 10572.09, "Perfumaria": 14629.34, "Solares": 3015.79, "Unhas": 7896.26}, "2": {"Barbearia": 2669.28, "Cabelo": 29199.77, "Cofres de oferta": 1927.25, "Cuidado de corpo": 17074.72, "Cuidado de rosto": 32382.35, "Estética profissional": 9550.35, "Maquilhagem": 12456.37, "Perfumaria": 19563.56, "Solares": 3138.27, "Unhas": 8175.16}, "3": {"Barbearia": 4994.29, "Cabelo": 29289.06, "Cofres de oferta": 1570.69, "Cuidado de corpo": 29461.88, "Cuidado de rosto": 35148.04, "Estética profissional": 12776.51, "Maquilhagem": 14377.97, "Perfumaria": 18093.22, "Solares": 5634.33, "Unhas": 10056.07}, "4": {"Barbearia": 2610.52, "Cabelo": 34379.61, "Cofres de oferta": 4333.29, "Cuidado de corpo": 22391.8, "Cuidado de rosto": 38870.73, "Estética profissional": 12741.37, "Maquilhagem": 11218.65, "Perfumaria": 20442.87, "Solares": 17661.0, "Unhas": 8475.11}, "5": {"Barbearia": 2515.52, "Cabelo": 34824.8, "Cofres de oferta": 11721.3, "Cuidado de corpo": 30043.66, "Cuidado de rosto": 35218.93, "Estética profissional": 15038.76, "Maquilhagem": 12012.77, "Perfumaria": 27642.62, "Solares": 24735.65, "Unhas": 9769.88}, "6": {"Barbearia": 3314.2, "Cabelo": 30052.57, "Cofres de oferta": 4019.66, "Cuidado de corpo": 24347.89, "Cuidado de rosto": 38491.16, "Estética profissional": 15383.77, "Maquilhagem": 15590.82, "Perfumaria": 23623.5, "Solares": 38999.27, "Unhas": 11630.97}, "7": {"Barbearia": 3954.77, "Cabelo": 32169.88, "Cofres de oferta": 1553.57, "Cuidado de corpo": 26012.8, "Cuidado de rosto": 36062.63, "Estética profissional": 16202.33, "Maquilhagem": 11938.87, "Perfumaria": 17276.6, "Solares": 33536.92, "Unhas": 10963.91}, "8": {"Barbearia": 3200.23, "Cabelo": 25700.3, "Cofres de oferta": 1754.3, "Cuidado de corpo": 16825.24, "Cuidado de rosto": 24505.76, "Estética profissional": 9192.54, "Maquilhagem": 4801.74, "Perfumaria": 12231.9, "Solares": 15802.38, "Unhas": 6150.55}, "9": {"Barbearia": 4710.63, "Cabelo": 38761.25, "Cofres de oferta": 2515.62, "Cuidado de corpo": 24106.8, "Cuidado de rosto": 33211.81, "Estética profissional": 12942.14, "Maquilhagem": 14308.5, "Perfumaria": 15512.09, "Solares": 10669.73, "Unhas": 8596.36}, "10": {"Barbearia": 4283.17, "Cabelo": 29867.5, "Cofres de oferta": 5384.27, "Cuidado de corpo": 24566.77, "Cuidado de rosto": 40310.54, "Estética profissional": 12060.66, "Maquilhagem": 13287.32, "Perfumaria": 20234.46, "Solares": 4169.65, "Unhas": 10539.72}, "11": {"Barbearia": 3513.42, "Cabelo": 33801.71, "Cofres de oferta": 25532.75, "Cuidado de corpo": 26303.0, "Cuidado de rosto": 46377.57, "Estética profissional": 12336.67, "Maquilhagem": 18327.51, "Perfumaria": 35832.12, "Solares": 2567.98, "Unhas": 12853.12}, "12": {"Barbearia": 2861.84, "Cabelo": 35124.71, "Cofres de oferta": 34568.49, "Cuidado de corpo": 25719.6, "Cuidado de rosto": 39718.08, "Estética profissional": 10585.62, "Maquilhagem": 19627.9, "Perfumaria": 43551.59, "Solares": 3625.64, "Unhas": 11774.71}}, "2025": {"1": {"Barbearia": 2946.88, "Cabelo": 28802.22, "Cofres de oferta": 1953.36, "Cuidado de corpo": 22271.36, "Cuidado de rosto": 34936.71, "Estética profissional": 8734.42, "Maquilhagem": 9121.51, "Perfumaria": 14292.11, "Solares": 2890.3, "Unhas": 7306.12}, "2": {"Barbearia": 3437.97, "Cabelo": 26882.1, "Cofres de oferta": 2364.37, "Cuidado de corpo": 21388.15, "Cuidado de rosto": 31911.83, "Estética profissional": 11644.87, "Maquilhagem": 11585.62, "Perfumaria": 16439.36, "Solares": 2377.17, "Unhas": 11030.85}, "3": {"Barbearia": 3876.2, "Cabelo": 34376.0, "Cofres de oferta": 3320.64, "Cuidado de corpo": 26808.6, "Cuidado de rosto": 31907.83, "Estética profissional": 12040.73, "Maquilhagem": 13622.36, "Perfumaria": 19788.9, "Solares": 9059.75, "Unhas": 9315.95}, "4": {"Barbearia": 2962.77, "Cabelo": 38857.22, "Cofres de oferta": 5093.77, "Cuidado de corpo": 27136.19, "Cuidado de rosto": 42069.59, "Estética profissional": 16234.92, "Maquilhagem": 12232.88, "Perfumaria": 18045.2, "Solares": 16335.38, "Unhas": 9691.6}, "5": {"Barbearia": 4034.23, "Cabelo": 35873.35, "Cofres de oferta": 13901.6, "Cuidado de corpo": 25529.73, "Cuidado de rosto": 36176.99, "Estética profissional": 17656.75, "Maquilhagem": 12830.97, "Perfumaria": 25292.1, "Solares": 23280.73, "Unhas": 10014.61}, "6": {"Barbearia": 4572.38, "Cabelo": 37411.0, "Cofres de oferta": 3017.7, "Cuidado de corpo": 25318.23, "Cuidado de rosto": 35226.97, "Estética profissional": 15202.93, "Maquilhagem": 15526.59, "Perfumaria": 15668.4, "Solares": 33958.34, "Unhas": 10931.65}, "7": {"Barbearia": 4457.66, "Cabelo": 40186.57, "Cofres de oferta": 2472.46, "Cuidado de corpo": 31208.48, "Cuidado de rosto": 33626.37, "Estética profissional": 19129.5, "Maquilhagem": 10898.61, "Perfumaria": 13612.41, "Solares": 37698.68, "Unhas": 10632.24}, "8": {"Barbearia": 2890.9, "Cabelo": 25200.56, "Cofres de oferta": 977.88, "Cuidado de corpo": 16373.24, "Cuidado de rosto": 28003.95, "Estética profissional": 10631.23, "Maquilhagem": 9029.97, "Perfumaria": 12325.46, "Solares": 16237.53, "Unhas": 8883.66}, "9": {"Barbearia": 5958.56, "Cabelo": 38164.36, "Cofres de oferta": 1895.84, "Cuidado de corpo": 27242.56, "Cuidado de rosto": 41362.88, "Estética profissional": 15007.81, "Maquilhagem": 13833.65, "Perfumaria": 18319.37, "Solares": 13602.14, "Unhas": 14361.98}, "10": {"Barbearia": 5868.7, "Cabelo": 41288.32, "Cofres de oferta": 8555.35, "Cuidado de corpo": 29056.77, "Cuidado de rosto": 37000.08, "Estética profissional": 13185.02, "Maquilhagem": 15281.49, "Perfumaria": 19956.53, "Solares": 4993.73, "Unhas": 14115.55}, "11": {"Barbearia": 6066.98, "Cabelo": 49052.6, "Cofres de oferta": 27092.12, "Cuidado de corpo": 32080.66, "Cuidado de rosto": 40442.13, "Estética profissional": 14147.9, "Maquilhagem": 19163.83, "Perfumaria": 39930.51, "Solares": 4885.51, "Unhas": 15399.63}, "12": {"Barbearia": 4166.7, "Cabelo": 43478.93, "Cofres de oferta": 36281.7, "Cuidado de corpo": 26353.72, "Cuidado de rosto": 39097.81, "Estética profissional": 11264.42, "Maquilhagem": 21974.77, "Perfumaria": 54795.81, "Solares": 2318.35, "Unhas": 10433.02}}}, "est": {"ramp": [0.065619, 0.233571, 0.350534, 0.521596, 0.703672, 0.442712, 0.776082, 1.013378, 1.251339, 1.367457], "compra": 596.1, "ret": 0.875, "elast": 1.986, "antec": 0.186, "prodExp": 30902.43, "prodC06": 15526.68, "marg": {"Barbearia": 0.4433, "Cabelo": 0.4188, "Cofres de oferta": 0.3829, "Cuidado de corpo": 0.449, "Cuidado de rosto": 0.5238, "Estética profissional": 0.399, "Maquilhagem": 0.4841, "Perfumaria": 0.4725, "Solares": 0.4199, "Unhas": 0.4706}}};
+const CFG0={"nome": "Âmbar e Sal, Distribuição de Cosmética Profissional, Lda.", "setor": "Distribuição grossista de cosmética e produtos de estética profissional", "sede": "Maia (distrito do Porto)", "equipa": "", "base": 2025, "meta": 2026, "cresc": 0.15, "mi": 7, "manual": false, "hb": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], "hm": [], "sazon": true, "rh": {"pag": 14, "tsu": 0.2375, "seg": 0.015, "alim": 9, "dias": 220}, "dep": [{"nome": "Gerência e administração", "n": 1, "sal": 3900}, {"nome": "Direção comercial e formação técnica", "n": 2, "sal": 2250}, {"nome": "Vendas internas e apoio ao cliente", "n": 2, "sal": 1050}, {"nome": "Marketing", "n": 2, "sal": 1500}, {"nome": "Logística e armazém", "n": 6, "sal": 1056.67}, {"nome": "Financeiro e administrativo", "n": 3, "sal": 1436.67}], "com": [{"cod": "C01", "sal": 1450.0, "comissao": 0.03, "viat": 620, "ajud": 220, "comunic": 45, "fatmes": 38058.25, "meses": 12}, {"cod": "C02", "sal": 1350.0, "comissao": 0.03, "viat": 620, "ajud": 220, "comunic": 45, "fatmes": 31059.5, "meses": 12}, {"cod": "C03", "sal": 1300.0, "comissao": 0.03, "viat": 620, "ajud": 220, "comunic": 45, "fatmes": 35493.29, "meses": 12}, {"cod": "C04", "sal": 1400.0, "comissao": 0.03, "viat": 620, "ajud": 220, "comunic": 45, "fatmes": 32089.6, "meses": 12}, {"cod": "C05", "sal": 1250.0, "comissao": 0.03, "viat": 620, "ajud": 220, "comunic": 45, "fatmes": 17811.53, "meses": 12}, {"cod": "C06", "sal": 1250.0, "comissao": 0.03, "viat": 620, "ajud": 220, "comunic": 45, "fatmes": 10443.18, "meses": 10}], "nov": {"sal": 1250, "comissao": 0.03, "viat": 620, "ajud": 220, "com": 45, "recrut": 2500, "form": 1800, "equip": 1500, "canib": 0.1, "ref": "c06", "refManual": 15526.68, "ramp": [0.07, 0.2, 0.35, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 1]}, "prodC06": 15526.68, "prodExp": 30902.43, "cat": [{"nome": "Perfumaria", "margem": 0.4725, "peso": 0.11993}, {"nome": "Cofres de oferta", "margem": 0.3829, "peso": 0.04777}, {"nome": "Cuidado de rosto", "margem": 0.5238, "peso": 0.19288}, {"nome": "Cuidado de corpo", "margem": 0.449, "peso": 0.13883}, {"nome": "Cabelo", "margem": 0.4188, "peso": 0.19637}, {"nome": "Solares", "margem": 0.4199, "peso": 0.07489}, {"nome": "Unhas", "margem": 0.4706, "peso": 0.05902}, {"nome": "Maquilhagem", "margem": 0.4841, "peso": 0.07376}, {"nome": "Estética profissional", "margem": 0.399, "peso": 0.07366}, {"nome": "Barbearia", "margem": 0.4433, "peso": 0.02289}], "mkt": {"compra": 580, "ret": 0.8, "decr": 0.15}, "canais": [{"nome": "Anúncios Meta (Instagram e Facebook)", "cpl": 40.2703, "conv": 0.01892, "orc": 4966.67, "desf": 1, "hmax": 5500}, {"nome": "Anúncios Google (pesquisa)", "cpl": 41.9355, "conv": 0.02688, "orc": 3900.0, "desf": 1, "hmax": 4200}, {"nome": "Email marketing e catálogo", "cpl": 25.4545, "conv": 0.03636, "orc": 1400.0, "desf": 0, "hmax": 1500}, {"nome": "Feira profissional", "cpl": 62.2084, "conv": 0.02488, "orc": 13333.33, "desf": 1, "hmax": 14000}, {"nome": "Programa de amostras", "cpl": 55.3991, "conv": 0.03756, "orc": 5900.0, "desf": 1, "hmax": 6000}, {"nome": "Parcerias com influenciadores de estética", "cpl": 46.7128, "conv": 0.0173, "orc": 6750.0, "desf": 1, "hmax": 7000}], "prm": {"elast": 2.3, "antec": 0.12, "fixo": 900, "max": 0.3}, "cf": {"rendas": 5350, "energia": 1150, "comunic": 780, "seguros": 420, "outros": 950, "frotaLog": 750, "transp": 0.025, "pmr": 45}, "mktCorr": 38900};
+DATA.stk={"Barbearia": {"stock": 646, "qm": 636.5, "rep": 10}, "Cabelo": {"stock": 7353, "qm": 5287.8, "rep": 10}, "Cofres de oferta": {"stock": 222, "qm": 140.8, "rep": 21}, "Cuidado de corpo": {"stock": 3394, "qm": 3063.2, "rep": 14}, "Cuidado de rosto": {"stock": 4289, "qm": 3204.7, "rep": 14}, "Estética profissional": {"stock": 1020, "qm": 1254.3, "rep": 12}, "Maquilhagem": {"stock": 2147, "qm": 1389.7, "rep": 28}, "Perfumaria": {"stock": 1821, "qm": 1253.8, "rep": 21}, "Solares": {"stock": 1469, "qm": 1260.0, "rep": 14}, "Unhas": {"stock": 3237, "qm": 2295.5, "rep": 28}};
+const sum=a=>a.reduce((x,y)=>x+y,0),M12=[1,2,3,4,5,6,7,8,9,10,11,12],mn=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const persCost=(c,sal,n=1)=>n*(sal*c.rh.pag*(1+c.rh.tsu+c.rh.seg)+c.rh.alim*c.rh.dias);
+function series(c){ // faturação mensal do ano base e do ano meta (reais)
+  const b=c.manual?c.hb.slice():(DATA.hist[c.base]||[]).slice(), r=c.manual?c.hm.slice():(DATA.hist[c.meta]||[]).slice();
+  return {b:M12.map(m=>+b[m-1]||0), r:r.filter(v=>v!=null&&v!=='').map(Number)};
+}
+function wts(c,m){ // peso das categorias no mês m do ano base
+  const t=c.cat.map(x=>x.peso), cm=!c.manual&&DATA.catm[c.base]&&DATA.catm[c.base][m];
+  if(!cm) return t;
+  const v=c.cat.map(x=>cm[x.nome]||0),s=sum(v);return s?v.map(x=>x/s):t;
+}
+const mpond=c=>sum(c.cat.map(x=>x.peso*x.margem));
+const custoNovo=c=>{const n=c.nov;return n.sal*c.rh.pag/12*(1+c.rh.tsu+c.rh.seg)+c.rh.alim*c.rh.dias/12+n.viat+n.ajud+n.com};
+const custoEntrada=c=>c.nov.recrut+c.nov.form+c.nov.equip;
+function base(c){
+  const s=series(c),n=s.r.length,g=n?sum(s.r)/sum(s.b.slice(0,n))-1:0, mi=c.mi, meta=sum(s.b)*(1+c.cresc);
+  const fb=M12.map(m=>s.b[m-1]*(1+g)), real=M12.map(m=>m<=n?s.r[m-1]:(m<mi?fb[m-1]:0));
+  const acc=sum(real.slice(0,mi-1)), nec=meta-acc, baseRest=sum(fb.slice(mi-1));
+  const fatBase=M12.map(m=>m<mi?real[m-1]:fb[m-1]);
+  return {s,n,g,meta,fb,real,acc,nec,baseRest,desvio:nec-baseRest,fatBase,fatAnual:sum(fatBase),fatBaseAno:sum(s.b)};
+}
+function sazon(c,B){const s=B.s.b;if(!c.sazon)return m=>1;const den=c.nov.ref==='c06'?sum(s.slice(0,6))/6:sum(s)/12;return m=>den?s[(m-1)%12]/den:1}
+function refProd(c){return c.nov.ref==='c06'?c.prodC06:c.nov.ref==='exp'?c.prodExp:c.nov.refManual}
+function p1Vaga(c,B,v,horizonte){ // horizonte: 12 = até dezembro; 24 = 24 meses
+  const S=sazon(c,B),R=c.nov.ramp,fim=horizonte===24?v.h+23:12,mp=mpond(c),cm=custoNovo(c),out={fat:M12.map(()=>0),f:0,cust:0};
+  if(!v.n||!v.h)return fin(c,out,mp);
+  for(let m=v.h;m<=fim;m++){const k=m-v.h+1,f=refProd(c)*S(m)*R[Math.min(k,10)-1]*(1-c.nov.canib),cu=cm+c.nov.comissao*f+(m===v.h?custoEntrada(c):0);
+    if(m<=12)out.fat[m-1]+=f*v.n;out.f+=f*v.n;out.cust+=cu*v.n}
+  return fin(c,out,mp)
+}
+function fin(c,o,mp){o.mb=o.f*mp;o.tr=c.cf.transp*o.f;o.res=o.mb-o.cust-o.tr;o.desc=o.desc||0;return o}
+function p2Leads(c,ch,B){const cpl=B>ch.orc?ch.cpl*(1+c.mkt.decr*Math.log2(B/ch.orc)):ch.cpl,leads=B/cpl,nc=leads*ch.conv;return{cpl,leads,nc}}
+function p2Camp(c,k,horizonte){
+  const ch=c.canais[k.canal],out={fat:M12.map(()=>0),f:0,cust:0,nc:0},mp=mpond(c);if(!ch||!k.orc||!k.mes)return fin(c,out,mp);
+  const{cpl,leads,nc}=p2Leads(c,ch,k.orc),s=k.mes+ch.desf,fim=horizonte===24?k.mes+23:12;
+  out.nc=nc;out.leads=leads;out.cpl=cpl;out.cust=k.orc;
+  for(let m=s;m<=fim;m++){const i=m-s+1,f=nc*c.mkt.compra*(i<=6?1:c.mkt.ret);if(m<=12)out.fat[m-1]+=f;out.f+=f}
+  return fin(c,out,mp)
+}
+function p3(c,B,proms){
+  const out={fat:M12.map(()=>0),f:0,mbv:0,cust:0,desc:0,prox:0,avisos:[],mbProx:0},used={};
+  proms.forEach((p,i)=>{
+    if(!p.d||!p.cats.length||!p.mes||!p.n)return;
+    const idx=p.cats.map(x=>+x),last=Math.min(12,p.mes+p.n-1),el=c.prm.elast,an=c.prm.antec;let ok=false;
+    if(p.mes<c.mi)out.avisos.push(`Promoção ${i+1}: começa antes do mês de início das medidas.`);
+    for(let m=p.mes;m<=p.n+p.mes-1&&m<=12;m++){
+      const cs=idx.filter(x=>{const key=m+'_'+x;if(used[key]){out.avisos.push(`Promoção ${i+1}: «${c.cat[x].nome}» já está noutra promoção em ${mn[m-1]}; ignorada.`);return false}used[key]=1;return true});
+      const w=wts(c,m);ok=ok||cs.length>0;
+      cs.forEach(x=>{const fk=B.fatBase[m-1]*w[x],mg=c.cat[x].margem,u=1+el*p.d,fp=fk*(1-p.d)*u;
+        out.fat[m-1]+=fp-fk;out.f+=fp-fk;out.mbv+=(fp-fk*u*(1-mg))-fk*mg;out.desc+=fk*u*p.d});
+      if(m===11&&p.d+.25>c.prm.max)out.avisos.push(`Promoção ${i+1}: em novembro, ${Math.round(p.d*100)}% + 25% da Black Friday = ${Math.round((p.d+.25)*100)}% > desconto máximo (${Math.round(c.prm.max*100)}%).`);
+    }
+    if(p.d>c.prm.max)out.avisos.push(`Promoção ${i+1}: desconto acima do máximo permitido.`);
+    if(ok)out.cust+=c.prm.fixo;
+    const nx=p.mes+p.n; // mês seguinte ao último
+    idx.forEach(x=>{if(used[(nx)+'_'+x]&&nx<=12)return;
+      if(nx<=12){const fk=B.fatBase[nx-1]*wts(c,nx)[x];out.fat[nx-1]-=fk*an;out.f-=fk*an;out.mbv-=fk*an*c.cat[x].margem}
+      else{const b1=B.s.b[0]*(1+B.g)*wts(c,1)[x];out.prox-=b1*an;out.mbProx-=b1*an*c.cat[x].margem}});
+  });
+  out.mb=out.mbv;out.tr=c.cf.transp*out.f;out.res=out.mb-out.cust-out.tr;return out
+}
+function opexBase(c,B,g,fat){
+  const dep=c.dep.reduce((a,d)=>a+persCost(c,d.sal,d.n),0)+sum(c.com.map(x=>persCost(c,x.sal)));
+  const cf=12*(c.cf.rendas+c.cf.energia+c.cf.comunic+c.cf.seguros+c.cf.outros+c.cf.frotaLog);
+  return {pessoal:dep,fixos:cf,frota:c.com.length*c.com.map(x=>x.viat).reduce((a,b)=>a+b,0)/c.com.length*12,transp:c.cf.transp*fat,comis:sum(c.com.map(x=>x.comissao*x.fatmes*x.meses))*(1+g),mkt:c.mktCorr}
+}
+const opexTotal=o=>o.pessoal+o.fixos+o.frota+o.transp+o.comis+o.mkt;
+function calc(c,sc){
+  const B=base(c),mp=mpond(c),L=[],add=(n,r)=>L.push([n,r]);
+  const v1=sc.p1.map(v=>p1Vaga(c,B,v,12)),v1b=sc.p1.map(v=>p1Vaga(c,B,v,24));
+  const v2=sc.p2.map(k=>p2Camp(c,k,12)),v2b=sc.p2.map(k=>p2Camp(c,k,24)),r3=p3(c,B,sc.p3);
+  const mth=(a,i)=>sum(a.map(x=>x.fat[i])),P1=M12.map((_,i)=>mth(v1,i)),P2=M12.map((_,i)=>mth(v2,i)),P3=r3.fat;
+  const sim=M12.map((_,i)=>B.fatBase[i]+(i+1>=c.mi?P1[i]+P2[i]+P3[i]:0)),fat=sum(sim);
+  const f1=sum(v1.map(x=>x.f)),f2=sum(v2.map(x=>x.f)),f3=r3.f,fi=f1+f2+f3;
+  const c1=sum(v1.map(x=>x.cust)),c2=sum(v2.map(x=>x.cust)),c3=r3.cust,ci=c1+c2+c3;
+  const mb1=f1*mp,mb2=f2*mp,mb3=r3.mb,mbi=mb1+mb2+mb3,tr=c.cf.transp*fi,res1=sum(v1.map(x=>x.res)),res2=sum(v2.map(x=>x.res)),res3=r3.res,resi=res1+res2+res3;
+  const base0=opexBase(c,B,B.g,B.fatAnual),ob=opexTotal(base0),rSem=B.fatAnual*mp-ob;
+  const den=ci+r3.desc,vp1=sum(v1b.map(x=>x.res)),vp2=sum(v2b.map(x=>x.res));
+  return {B,mp,P1,P2,P3,sim,fat,fi,f1,f2,f3,ci,c1,c2,c3,mbi,mb1,mb2,mb3,res1,res2,res3,resi,tr,desc:r3.desc,roi:den?resi/den:0,cpe:fi?den/fi:0,
+    v24:vp1+vp2,v24p1:vp1,v24p2:vp2,prox:r3.prox,avisos:r3.avisos,dist:B.meta-fat,pct:fat/B.meta,ok:fat>=B.meta,var:fat/B.fatBaseAno-1,
+    opex:ob,opexDet:base0,rSem,rCom:rSem+resi,nc:sum(v2.map(x=>x.nc||0)),novos:sc.p1.reduce((a,v)=>a+(+v.n||0),0),
+    fatMes:sim,metaMes:M12.map(m=>B.s.b[m-1]*(1+c.cresc))}
+}
+const emptySc=()=>({p1:[{n:0,h:7},{n:0,h:7}],p2:[{canal:0,orc:0,mes:9},{canal:0,orc:0,mes:9},{canal:0,orc:0,mes:9}],p3:[{d:0,cats:[],mes:11,n:2},{d:0,cats:[],mes:11,n:2},{d:0,cats:[],mes:11,n:2}]});
+let S={cfg:JSON.parse(JSON.stringify(CFG0)),sc:emptySc(),tab:'cfg',saved:[],chart:null,exp:''};
+const $=s=>document.querySelector(s),eur=x=>Math.round(x).toLocaleString('pt-PT')+' €',pc=(x,d=1)=>(x*100).toFixed(d).replace('.',',')+'%',esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),he=esc;
+const gp=(o,p)=>p.split('.').reduce((a,k)=>a[k],o);
+function sp(p,v){const k=p.split('.'),l=k.pop();gp(S,k.join('.'))[l]=v}
+const val=(p,t)=>{const v=gp(S,p);return t==='p'?+(v*100).toFixed(3):v};
+const inp=(l,p,t='n')=>`<label>${l}<input data-p="${p}" data-ty="${t}" type="${t==='t'?'text':'number'}" step="any" value="${esc(val(p,t))}"></label>`;
+const sel=(l,p,o)=>`<label>${l}<select data-p="${p}" data-ty="n">${o.map(([v,n])=>`<option value="${v}"${gp(S,p)==v?' selected':''}>${n}</option>`).join('')}</select></label>`;
+const mesOpt=()=>M12.filter(m=>m>=S.cfg.mi).map(m=>[m,mn[m-1]]);
+function tbl(path,cols,add0){const add=add0&&S.role!=='viewer';const a=gp(S,path);return `<div class="sc"><table><tr>${cols.map(c=>`<th>${c[0]}</th>`).join('')}<th></th></tr>${a.map((r,i)=>`<tr>${cols.map(c=>`<td>${c[3]?`<span>${c[3](r,i)}</span>`:`<input data-p="${path}.${i}.${c[1]}" data-ty="${c[2]}" type="${c[2]==='t'?'text':'number'}" step="any" value="${esc(c[2]==='p'?+(r[c[1]]*100).toFixed(3):r[c[1]])}">`}</td>`).join('')}<td>${add?`<button data-act="del:${path}:${i}">✕</button>`:''}</td></tr>`).join('')}</table></div>${add?`<button data-act="add:${path}">+ Adicionar linha</button>`:''}`}
+function summary(r){const c=S.cfg,tr=sum(c.dep.map(d=>d.n))+c.com.length;return `<div class="kp">${[['Trabalhadores',tr],['Custo anual com pessoal',eur(r.opexDet.pessoal)],['Custos fixos/mês',eur(sum(Object.values(c.cf).slice(0,6)))],['Margem bruta',pc(r.mp)],['Meta '+c.meta,eur(r.B.meta)],['Desvio a cobrir',eur(r.B.desvio)],['Resultado operacional (sem medidas)',eur(r.rSem)]].map(([a,b])=>`<div><small>${a}</small><b>${b}</b></div>`).join('')}</div>`}
+function vCfg(r){const c=S.cfg,m=c.manual;return `<details open><summary>a) Identificação e meta</summary><div class="g">${inp('Empresa','cfg.nome','t')}${inp('Setor','cfg.setor','t')}${inp('Sede','cfg.sede','t')}${inp('Equipa','cfg.equipa','t')}${inp('Ano base','cfg.base')}${inp('Ano da meta','cfg.meta')}${inp('Meta de crescimento (%)','cfg.cresc','p')}${sel('Mês de início das medidas','cfg.mi',M12.filter(x=>x>r.B.n).map(x=>[x,mn[x-1]]))}</div></details>
+<details><summary>b) Histórico de faturação</summary><label class="ck"><input type="checkbox" data-p="cfg.manual" data-ty="b"${m?' checked':''}> Introduzir manualmente</label>${m?`<p>Ano base (12 meses) e meses já decorridos do ano da meta (€):</p><div class="g m">${M12.map(i=>inp(mn[i-1]+' base','cfg.hb.'+(i-1))).join('')}${M12.map(i=>inp(mn[i-1]+' meta','cfg.hm.'+(i-1))).join('')}</div>`:'<p>Valores do Excel (2024, 2025 e jan.–jun. 2026). Ativar o modo manual para simular outra empresa.</p>'}</details>
+<details><summary>c) Recursos humanos</summary><div class="g">${inp('Pagamentos/ano','cfg.rh.pag')}${inp('TSU empregador (%)','cfg.rh.tsu','p')}${inp('Seguro AT (%)','cfg.rh.seg','p')}${inp('Sub. alimentação €/dia','cfg.rh.alim')}${inp('Dias úteis/ano','cfg.rh.dias')}</div>${tbl('cfg.dep',[['Departamento','nome','t'],['N.º','n','n'],['Salário médio €','sal','n'],['Custo anual €','',' ',(d)=>eur(persCost(S.cfg,d.sal,d.n))]],1)}<p>Força de vendas (calculada, sem vendas internas): ${S.cfg.com.length} trabalhadores, ${eur(sum(S.cfg.com.map(x=>persCost(S.cfg,x.sal))))}/ano. <b>Total: ${sum(c.dep.map(d=>d.n))+c.com.length} trabalhadores, ${eur(r.opexDet.pessoal)}/ano.</b></p></details>
+<details><summary>d) Força de vendas</summary>${tbl('cfg.com',[['Cód.','cod','t'],['Salário €','sal','n'],['Comissão %','comissao','p'],['Viatura €','viat','n'],['Ajudas €','ajud','n'],['Comunic. €','comunic','n'],['Fat. média/mês €','fatmes','n'],['Meses ativos','meses','n']],1)}<h4>Novo comercial</h4><div class="g">${inp('Salário base €/mês','cfg.nov.sal')}${inp('Comissão %','cfg.nov.comissao','p')}${inp('Viatura €','cfg.nov.viat')}${inp('Ajudas €','cfg.nov.ajud')}${inp('Comunicações €','cfg.nov.com')}${inp('Recrutamento €','cfg.nov.recrut')}${inp('Formação €','cfg.nov.form')}${inp('Equipamento €','cfg.nov.equip')}${inp('Canibalização %','cfg.nov.canib','p')}${sel('Produtividade de referência','cfg.nov.ref',[['c06','C06 (jan.–jun.)'],['exp','Média dos experientes'],['manual','Valor manual']])}${inp('Valor manual €/mês','cfg.nov.refManual')}<label class="ck"><input type="checkbox" data-p="cfg.sazon" data-ty="b"${c.sazon?' checked':''}> Sazonalidade</label></div><p>Rampa (% da produtividade), meses 1 a 10:</p><div class="g m">${c.nov.ramp.map((_,i)=>inp('M'+(i+1)+(i==9?'+':''),'cfg.nov.ramp.'+i,'n')).join('')}</div></details>
+<details><summary>e) Produtos e margens</summary>${tbl('cfg.cat',[['Categoria','nome','t'],['Margem %','margem','p'],['Peso %','peso','p']])}<p>Margem bruta ponderada: <b>${pc(r.mp,2)}</b></p></details>
+<details><summary>f) Marketing</summary><div class="g">${inp('Compra média novo cliente €/mês','cfg.mkt.compra')}${inp('Retenção 6 meses %','cfg.mkt.ret','p')}${inp('Rendimentos decrescentes','cfg.mkt.decr','p')}${inp('Marketing corrente €/ano','cfg.mktCorr')}</div>${tbl('cfg.canais',[['Canal','nome','t'],['Custo/lead €','cpl','n'],['Conversão %','conv','p'],['Orçamento médio €','orc','n'],['Desfasamento (meses)','desf','n']],1)}</details>
+<details><summary>g) Promoções</summary><div class="g">${inp('Elasticidade','cfg.prm.elast')}${inp('Antecipação %','cfg.prm.antec','p')}${inp('Custo fixo/promoção €','cfg.prm.fixo')}${inp('Desconto máximo %','cfg.prm.max','p')}</div></details>
+<details><summary>h) Custos fixos e tesouraria</summary><div class="g">${[['rendas','Rendas'],['energia','Energia e água'],['comunic','Comunicações'],['seguros','Seguros'],['outros','Outros'],['frotaLog','Viatura distribuição']].map(([k,l])=>inp(l+' €/mês','cfg.cf.'+k)).join('')}${inp('Transportes (% fat.)','cfg.cf.transp','p')}${inp('PMR (dias)','cfg.cf.pmr')}</div></details>
+${S.role==='admin'?`<div class="bar"><button data-act="reset">Repor valores do Excel</button><button data-act="exp">Exportar configuração</button><button data-act="imp">Importar configuração</button><input type="file" id="fi" accept=".json" hidden></div><textarea id="tx" placeholder="Configuração em JSON (para copiar ou colar e importar)">${S.exp}</textarea>`:''}`}
+function vP1(r){const c=S.cfg;return `<p>Custo fixo mensal por comercial: <b>${eur(custoNovo(c))}</b> · custos únicos de entrada: <b>${eur(custoEntrada(c))}</b> · produtividade de referência: ${eur(refProd(c))}/mês</p>${S.sc.p1.map((v,i)=>{const a=p1Vaga(c,r.B,v,12),b=p1Vaga(c,r.B,v,24);return `<div class="cd"><h4>Vaga ${i+1}</h4><div class="g">${sel('Comerciais','sc.p1.'+i+'.n',[0,1,2,3,4,5,6].map(x=>[x,x]))}${sel('Mês de entrada','sc.p1.'+i+'.h',mesOpt())}</div><p>Faturação até dezembro ${eur(a.f)} · custos ${eur(a.cust)} · resultado ${eur(a.res)} · valor a 24 meses ${eur(b.res)}</p></div>`}).join('')}`}
+function vP2(r){const c=S.cfg;return S.sc.p2.map((k,i)=>{const a=p2Camp(c,k,12),b=p2Camp(c,k,24);return `<div class="cd"><h4>Campanha ${i+1}</h4><div class="g">${sel('Canal','sc.p2.'+i+'.canal',c.canais.map((x,j)=>[j,x.nome]))}${inp('Orçamento €','sc.p2.'+i+'.orc')}${sel('Mês','sc.p2.'+i+'.mes',mesOpt())}</div>${k.orc?`<p>Custo por lead efetivo ${eur(a.cpl)} · leads ${a.leads.toFixed(1)} · novos clientes ${a.nc.toFixed(2)} · faturação em ${c.meta} ${eur(a.f)} · resultado ${eur(a.res)} · valor a 24 meses ${eur(b.res)}</p>`:''}</div>`}).join('')}
+function vP3(r){const c=S.cfg;return S.sc.p3.map((p,i)=>`<div class="cd"><h4>Promoção ${i+1}</h4><div class="g">${inp('Desconto %','sc.p3.'+i+'.d','p')}${sel('Mês inicial','sc.p3.'+i+'.mes',mesOpt())}${sel('N.º de meses','sc.p3.'+i+'.n',[1,2,3,4,5,6].map(x=>[x,x]))}</div><div class="ch">${c.cat.map((x,j)=>`<label><input type="checkbox" data-cat="${i},${j}"${p.cats.includes(j)?' checked':''}> ${x.nome}</label>`).join('')}</div></div>`).join('')+`<p>Faturação incremental ${eur(r.f3)} · desconto concedido ${eur(r.desc)} · margem incremental ${eur(r.mb3)} · efeito no ano seguinte ${eur(r.prox)}</p>${r.avisos.map(a=>`<p class="w">⚠ ${a}</p>`).join('')}`}
+const kp=(a,b,c='')=>`<div class="k ${c}"><small>${a}</small><b>${b}</b></div>`;
+function vRes(r){const B=r.B,k=B.nec/sum(B.s.b.slice(S.cfg.mi-1)),c=S.cfg,A=alerts(c,S.sc,r),be=breakEven(c,B,S.sc);return `${healthBar(r,c,A)}<div class="st ${r.ok?'ok':'no'}">${r.ok?'Meta atingida':'Meta não atingida'} · ${pc(r.pct)} da meta</div>${beCard(be)}<div class="kp">${[['Faturação '+c.meta,eur(r.fat)],['Variação vs '+c.base,pc(r.var)],['Distância à meta',eur(r.dist)+' ('+pc(r.dist/B.meta)+')'],['Faturação incremental',eur(r.fi)],['Custos incrementais',eur(r.ci)],['Desconto concedido',eur(r.desc)],['Margem bruta incremental',eur(r.mbi)],['Resultado incremental',eur(r.resi)],['ROI',r.roi.toFixed(2).replace('.',',')],['Custo por € adicional',r.cpe.toFixed(2).replace('.',',')+' €'],['Valor a 24 meses (P1+P2)',eur(r.v24)],['Efeito no ano seguinte',eur(r.prox)],['Resultado operacional sem medidas',eur(r.rSem)],['Resultado operacional com medidas',eur(r.rCom)]].map(([a,b])=>kp(a,b)).join('')}</div><p>Aditividade das três alavancas assumida (sem interações).</p>${alHtml(A)}<div class="cv"><canvas id="cv"></canvas></div><div class="sc"><table><tr><th>Mês</th><th>Necessária</th><th>Base</th><th>P1</th><th>P2</th><th>P3</th><th>Simulado</th><th>Meta</th></tr>${M12.map(m=>`<tr><td>${mn[m-1]}</td><td>${m>=c.mi?eur(B.s.b[m-1]*k):'—'}</td><td>${eur(B.fatBase[m-1])}</td><td>${eur(r.P1[m-1])}</td><td>${eur(r.P2[m-1])}</td><td>${eur(r.P3[m-1])}</td><td>${eur(r.sim[m-1])}</td><td>${eur(r.metaMes[m-1])}</td></tr>`).join('')}</table></div>`}
+function chart(r,id='#cv',lt){if(typeof Chart==='undefined'){const e=$(id);if(e)e.outerHTML='<p>Gráfico indisponível (biblioteca não carregou); ver tabela.</p>';return}const B=r.B,d=(l,a,col,x)=>({label:l,data:a,borderColor:col,backgroundColor:col,tension:.25,pointRadius:2,borderDash:x||[]});
+ Chart.defaults.color=lt?'#333':'#c8d0e0';Chart.defaults.borderColor=lt?'#ddd':'#24304a';if(!lt&&S.chart)S.chart.destroy();const ch=new Chart($(id),{type:'line',data:{labels:mn,datasets:[d('Ano base real',B.s.b,'#8a94a6'),d('Ano meta real',M12.map(m=>m<=B.n?B.s.r[m-1]:null),'#1d6fa5'),d('Cenário base',B.fatBase,'#c58b1a',[5,4]),d('Simulado',r.sim,'#1e8a5a'),d('Meta mensal',r.metaMes,'#b3362f',[2,3])]},options:{animation:false,responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},scales:{y:{ticks:{callback:v=>v/1000+' k€'}}}}});if(!lt)S.chart=ch}
+const IND=[['fat','Faturação',1],['var','Variação',2],['dist','Distância à meta',1],['fi','Fat. incremental',1],['ci','Custos incr.',1],['desc','Desconto',1],['mbi','Margem incr.',1],['resi','Resultado incr.',1],['roi','ROI',3],['v24','Valor 24 m',1],['prox','Ano seguinte',1],['rSem','Op. sem medidas',1],['rCom','Op. com medidas',1]];
+const fm=(v,t)=>t===1?eur(v):t===2?pc(v):v.toFixed(2).replace('.',',');
+function vCmp(r){const canDel=S.udoc&&(S.udoc.role==='admin'||isSA(S.fbUser&&S.fbUser.email,S.udoc));return `${S.fbUser?'<div class="bar"><input id="sn" placeholder="Nome do cenário"><button data-act="save">Guardar cenário atual</button></div>':'<p class="w">Modo Visitante: pode ver e aplicar os cenários guardados, mas só uma conta aprovada pode gravar novos.</p>'}<p>${S.scLoading?'A carregar cenários da nuvem…':S.saved.length+' cenário(s) guardado(s) na nuvem (partilhados por toda a equipa).'}</p>${S.saved.length?`<div class="sclist">${S.saved.map(s=>`<div class="scitem"><span>${he(s.n)} <small>(por: ${he(s.autor||'—')})</small></span><span class="scbtns"><button data-act="apply:${he(s.id)}">Aplicar</button>${canDel?`<button class="dg" data-act="rm:${he(s.id)}">✕</button>`:''}</span></div>`).join('')}</div><div class="sc"><table><tr><th></th>${S.saved.map(s=>`<th>${he(s.n)}<br><small>por: ${he(s.autor||'—')}</small></th>`).join('')}</tr>${[['Meta atingida',x=>x.ok?'Sim':'Não'],['% da meta',x=>pc(x.pct)]].map(([l,f])=>`<tr><td>${l}</td>${S.saved.map(s=>`<td>${f(calc(s.cfg,s.sc))}</td>`).join('')}</tr>`).join('')}${IND.map(([k,l,t])=>`<tr><td>${l}</td>${S.saved.map(s=>`<td>${fm(calc(s.cfg,s.sc)[k],t)}</td>`).join('')}</tr>`).join('')}</table></div>`:''}`}
+function vPres(r){const c=S.cfg,E=DATA.est,o=(a,b)=>JSON.stringify(a)===JSON.stringify(b)?'Excel':'alterado pela equipa';
+ const rows=[['Elasticidade promocional',c.prm.elast,'2,3',E.elast,o(c.prm.elast,CFG0.prm.elast)],['Antecipação',c.prm.antec,'12%',E.antec,o(c.prm.antec,CFG0.prm.antec)],['Compra novo cliente €/mês',c.mkt.compra,'580',E.compra,o(c.mkt.compra,CFG0.mkt.compra)],['Retenção 6 meses',c.mkt.ret,'80%',E.ret,o(c.mkt.ret,CFG0.mkt.ret)],['Produtividade C06 €/mês',c.prodC06,'15 527',E.prodC06,'Excel/estimativa'],['Produtividade experientes €/mês',c.prodExp,'30 902',E.prodExp,'Excel/estimativa']];
+ return `<div class="sc"><table><tr><th>Parâmetro</th><th>Atual</th><th>Excel</th><th>Estimativa</th><th>Origem</th></tr>${rows.map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td><td>${x[2]}</td><td>${x[3]}</td><td>${x[4]}</td></tr>`).join('')}</table></div><ul>
+<li>g = crescimento homólogo acumulado (meses reais). Base(m) = fat. ${c.base}(m)×(1+g). Meta mensal = fat. ${c.base}(m)×(1+meta).</li><li>S(m) = fat. ${c.base}(m) ÷ média mensal (jan.–jun. se referência C06, senão 12 meses).</li><li>P1: Fp1(m)=REF×S(m)×RAMPA(k)×(1−canib.), k=m−h+1; custo = custo mensal + comissão×Fp1; + custo de entrada em h.</li><li>P2: custo/lead efetivo = CPL×(1+decr.×log2(B÷orç. médio)) se B>orç. médio; novos clientes = leads×conversão; compram desde t+desfasamento (6 meses a 100%, depois × retenção).</li><li>P3: Fat = FbaseK×(1−d)×(1+E×d); custo mercadorias = FbaseK×(1+E×d)×(1−margem); antecipação no mês seguinte = −FbaseK×A (em janeiro seguinte, indicador à parte).</li><li>Resultado incr. = margem incr. − custos incr. − transportes%×fat. incr. ROI = resultado ÷ (custos + desconto).</li><li>Valor a 24 meses (P1 e P2): resultado durante 24 meses; sazonalidade só em P1 (pressuposto).</li><li>Resultado operacional = fat. base×margem − gastos base (pessoal do quadro, custos fixos, frota comercial, transportes, comissões atuais, marketing corrente) + resultado incremental.</li></ul>`}
+document.addEventListener('change',e=>{const t=e.target;if(!S.in)return;if(t.dataset.p){const ty=t.dataset.ty,v=ty==='b'?t.checked:ty==='t'?t.value:ty==='p'?(parseFloat(t.value)||0)/100:parseFloat(t.value)||0,p=t.dataset.p;if(S.role==='viewer')return;sp(p,v)}else if(t.dataset.cat){const[i,j]=t.dataset.cat.split(',').map(Number),a=S.sc.p3[i].cats;t.checked?a.push(j):a.splice(a.indexOf(j),1)}else if(t.dataset.urole){setRole(t.dataset.urole,t.value);return}else if(t.id==='fi'){const f=t.files[0],rd=new FileReader();rd.onload=()=>imp(rd.result);rd.readAsText(f);return}else return;render()});
+function imp(txt){try{const o=JSON.parse(txt);S.cfg=o.cfg||o;if(o.sc)S.sc=o.sc;render()}catch(x){alert('JSON inválido')}}
+document.addEventListener('click',e=>{if(e.target.id==='navToggle'){S.navOpen=!S.navOpen;render();return}if(e.target.closest('#sideToggle')){S.sideCollapsed=!S.sideCollapsed;render();return}const a=e.target.dataset.act;const nb=e.target.closest('nav button[data-t]');if(nb){S.tab=nb.dataset.t;S.msg='';render();window.scrollTo(0,0);return}if(!a)return;const[k,p,i]=a.split(':');if(ext(k,p))return;
+ if(k==='add'){const arr=gp(S,p);arr.push(JSON.parse(JSON.stringify(arr[arr.length-1]||{})))}
+ else if(k==='del')gp(S,p).splice(+i,1);else if(k==='reset'){S.cfg=JSON.parse(JSON.stringify(CFG0));S.sc=emptySc()}
+ else if(k==='exp'){S.exp=JSON.stringify({cfg:S.cfg,sc:S.sc},null,1);try{const b=new Blob([S.exp],{type:'application/json'}),l=document.createElement('a');l.href=URL.createObjectURL(b);l.download='configuracao.json';l.click()}catch(x){}}
+ else if(k==='imp'){const t=$('#tx').value.trim();t?imp(t):$('#fi').click();return}
+ else if(k==='save'){cmdSaveScenario($('#sn').value);return}
+ else if(k==='rm'){cmdRmScenario(p);return}
+ render()});
+function watchScenarios(){
+ if(SC)SC();
+ S.scLoading=true;if(S.tab==='cmp')render();
+ SC=FB.onSnapshot(FB.query(FB.scenariosCol,FB.limit(50)),snap=>{
+  const rows=snap.docs.map(d=>({id:d.id,...d.data()}));
+  rows.sort((x,y)=>{const tx=x.timestamp&&x.timestamp.toMillis?x.timestamp.toMillis():0,ty=y.timestamp&&y.timestamp.toMillis?y.timestamp.toMillis():0;return tx-ty});
+  S.saved=rows.map(x=>({id:x.id,n:x.name,autor:x.autor,cfg:x.params&&x.params.cfg,sc:x.params&&x.params.sc})).filter(x=>x.cfg&&x.sc);
+  S.scLoading=false;if(S.tab==='cmp')render();
+ },e=>{S.scLoading=false;S.msg='Não foi possível carregar os cenários guardados: '+fbErrorMsg(e);render()});
+}
+async function cmdSaveScenario(name){
+ if(!S.fbUser){alert('É necessário ter sessão iniciada para gravar cenários na nuvem.');return}
+ if(S.saved.length>=50){alert('Limite de 50 cenários partilhados atingido.');return}
+ const r=calc(S.cfg,S.sc),ref=FB.newDoc('scenarios'),nm=name||'Cenário '+(S.saved.length+1);
+ const data={userId:S.fbUser.uid,autor:S.fbUser.email,name:nm,params:{cfg:S.cfg,sc:S.sc},result:{pct:r.pct,ok:r.ok,resi:r.resi,roi:r.roi,fat:r.fat},timestamp:FB.serverTimestamp()};
+ try{
+  await FB.setDoc(ref,data);
+  if(!S.saved.some(x=>x.id===ref.id))S.saved.push({id:ref.id,n:nm,autor:data.autor,cfg:JSON.parse(JSON.stringify(S.cfg)),sc:JSON.parse(JSON.stringify(S.sc))});
+  S.msg='Cenário guardado na nuvem.';render()
+ }catch(e){S.msg='Não foi possível guardar o cenário: '+fbErrorMsg(e);render()}
+}
+async function cmdRmScenario(id){
+ const me=S.udoc;if(!me||!(me.role==='admin'||isSA(S.fbUser&&S.fbUser.email,me))){alert('Só um administrador pode eliminar cenários partilhados.');return}
+ const prev=S.saved;S.saved=S.saved.filter(x=>x.id!==id);render();
+ try{await FB.deleteDoc(FB.doc('scenarios',id))}
+ catch(e){S.saved=prev;S.msg='Não foi possível eliminar o cenário: '+fbErrorMsg(e);render()}
+}
+function cmdApplyScenario(id){
+ const s=S.saved.find(x=>x.id===id);if(!s)return;
+ S.cfg=JSON.parse(JSON.stringify(s.cfg));S.sc=JSON.parse(JSON.stringify(s.sc));
+ S.msg='Cenário «'+s.n+'» aplicado: os valores substituíram a configuração atual no seu ecrã (nada foi gravado na nuvem).';
+ render()
+}
+const SUPER_ADMIN_EMAIL='claudiom17@gmail.com'; // MUDAR para o email real do Super Admin (tem de existir no Firebase Authentication)
+const PW={admin:'Administrador',editor:'Colaborador/Editor',viewer:'Visitante'},TABS={viewer:['cfg','p1','p2','p3','res','cmp','pres','set'],editor:['cfg','p1','p2','p3','res','cmp','pres','set'],admin:['cfg','p1','p2','p3','res','cmp','pres','usr','adm','set']};
+const home=r=>r==='admin'?'usr':r==='editor'?'cfg':'res';
+const isSA=(email,udoc)=>!!(email&&SUPER_ADMIN_EMAIL&&email.toLowerCase()===SUPER_ADMIN_EMAIL.toLowerCase())||!!(udoc&&udoc.isSuperAdmin);
+const validEmail=e=>/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+function fbErrorMsg(e){const c=e&&e.code||'';const M={'auth/invalid-email':'Email inválido.','auth/user-not-found':'Email ou password incorretos.','auth/wrong-password':'Email ou password incorretos.','auth/invalid-credential':'Email ou password incorretos.','auth/email-already-in-use':'Já existe uma conta com este email.','auth/weak-password':'Password demasiado fraca (mínimo 8 caracteres).','auth/network-request-failed':'Falha de ligação à internet.','auth/too-many-requests':'Demasiadas tentativas. Tente mais tarde.'};return M[c]||('Erro Firebase'+(c?' ('+c+')':'')+': '+(e&&e.message||'desconhecido')+'. Verifique se preencheu firebaseConfig e se o método Email/Password está ativado na Firebase Console.')}
+let FB=null,US=null,SS=null,SC=null; // FB = ponte para o SDK; US = listener do próprio documento; SS = listener da coleção users (admin); SC = listener dos cenários partilhados
+let REGISTERING=false; // evita que onAuthStateChanged reaja ao sign-in automatico do createUser antes do perfil Firestore existir
+S.op={};S.fbUser=null;S.udoc=null;S.in=false;S.authLoading=true;S.showGate=true;S.gt='in';S.gm='';S.gk='';S.gv={u:'',n:''};S.fails=0;S.lock=0;S.role='viewer';S.msg='';S.tab='res';S.navOpen=false;S.sideCollapsed=false;S.theme=(function(){try{return localStorage.getItem('ambarsal_theme')||'verde'}catch(e){return'verde'}})();
+S.usersList=[];S.scLoading=false;S.saved=[];
+function whoBar(){const m=S.udoc;return S.fbUser&&m?`<span class="pill">${he(m.name||S.fbUser.email)} · ${PW[m.role]}${isSA(S.fbUser.email,m)?' · Super Admin':''}</span> <button data-act="out">Sair</button>`:`<span class="pill">Visitante (só leitura)</span> <button data-act="gt:in">Entrar / Criar conta</button>`}
+const THEMES=[{id:'verde',label:'Verde (predefinido)',sw:['#18181B','#10B981']},{id:'preto',label:'Preto (True Dark)',sw:['#000000','#E4E4E7']},{id:'branco',label:'Branco (Light Mode)',sw:['#F5F5F7','#14213D']},{id:'vermelho',label:'Vermelho',sw:['#18181B','#E11D48']},{id:'azul',label:'Azul',sw:['#18181B','#0EA5E9']},{id:'rosa',label:'Rosa',sw:['#18181B','#EC4899']},{id:'roxo',label:'Roxo',sw:['#18181B','#8B5CF6']},{id:'laranja',label:'Laranja',sw:['#18181B','#EA580C']}];
+function setTheme(id){S.theme=id;try{document.documentElement.setAttribute('data-theme',id);localStorage.setItem('ambarsal_theme',id)}catch(e){}render()}
+function vSet(){return `<h4>Definições</h4><p><small>Escolha o tema de cores da aplicação. A preferência fica guardada neste dispositivo (localStorage) e mantém-se ao atualizar a página.</small></p><div class="themegrid">${THEMES.map(t=>`<button type="button" class="themecard${S.theme===t.id?' on':''}" data-act="theme:${t.id}"><span class="themeswatch" style="background:${t.sw[0]}"><span style="background:${t.sw[1]}"></span></span><span>${t.label}</span></button>`).join('')}</div>`}
+function gmsg(m,k){S.gm=m;S.gk=k||'';renderGate()}
+function renderGate(){
+ if(S.authLoading){$('#gate').innerHTML=`<div class="gb"><h1>Simulador · Âmbar e Sal</h1><p>A ligar ao Firebase…</p></div>`;return}
+ const t=S.gt,f=t==='in'?`<label>Email<input id="g_u" type="email" autocomplete="username" value="${esc(S.gv.u)}"></label><label>Password<input id="g_p" type="password" autocomplete="current-password"></label><button class="pr" data-act="lg">Entrar</button>`:`<label>Nome<input id="g_n" value="${esc(S.gv.n)}"></label><label>Email<input id="g_u" type="email" autocomplete="username" value="${esc(S.gv.u)}"></label><label>Password (mín. 8 caracteres)<input id="g_p" type="password" autocomplete="new-password"></label><button class="pr" data-act="rg">Criar conta</button>`;
+ $('#gate').innerHTML=`<div class="gb"><h1>Simulador · Âmbar e Sal</h1><div class="tb"><button data-act="gt:in" class="${t==='in'?'on':''}">Entrar</button><button data-act="gt:reg" class="${t==='reg'?'on':''}">Criar Conta (Registar)</button></div>${S.gm?`<div class="al ${S.gk==='ok'?'g':'r'}">${he(S.gm)}</div>`:''}${f}<hr><button class="vw" data-act="vw">Entrar como Visitante</button><small>Modo Visitante: só leitura, não exige conta nem aprovação.</small></div>`}
+function stopListeners(){if(US){US();US=null}if(SS){SS();SS=null}if(SC){SC();SC=null}}
+async function enterSession(fbUser,udoc){
+ S.fbUser=fbUser;S.udoc=udoc;S.role=udoc.role;S.in=true;S.fails=0;S.gm='';S.msg='';
+ if(!TABS[S.role].includes(S.tab))S.tab=home(udoc.role);
+ watchScenarios();
+ if(S.role==='admin')watchUsers();
+ render();
+}
+async function leaveSession(msg){
+ stopListeners();S.fbUser=null;S.udoc=null;S.role='viewer';S.gt='in';S.saved=[];S.usersList=[];
+ if(msg){S.gm=msg;S.gk='';S.showGate=true}else{S.showGate=true}
+ try{await FB.signOutUser()}catch(e){}
+ watchScenarios();
+ render()
+}
+function watchOwnDoc(uid){
+ if(US)US();
+ US=FB.onSnapshot(FB.doc('users',uid),snap=>{
+  if(!snap.exists()){leaveSession('A sua conta foi removida.');return}
+  const d=snap.data();
+  if(d.status!=='active'){leaveSession(d.status==='suspended'?'O seu acesso foi suspenso pelo administrador.':'A sua conta está Pendente de Aprovação. Aguarde a validação de um administrador.');return}
+  S.udoc=d;if(d.role!==S.role){S.role=d.role;S.msg='O seu papel foi alterado para '+PW[d.role]+'.';if(!TABS[S.role].includes(S.tab))S.tab=home(d.role)}
+  render();
+ },()=>{});
+}
+function watchUsers(){
+ if(SS)SS();
+ SS=FB.onSnapshot(FB.query(FB.usersCol),snap=>{S.usersList=snap.docs.map(d=>({id:d.id,...d.data()}));if(S.tab==='usr')render()},()=>{});
+}
+async function onFbAuthChange(fbUser){
+ S.authLoading=false;
+ if(REGISTERING)return; // doReg() esta' a orquestrar este sign-in; nao interferir a meio
+ if(!fbUser){stopListeners();S.fbUser=null;S.udoc=null;S.role='viewer';S.saved=[];S.usersList=[];watchScenarios();render();return}
+ try{
+  const ref=FB.doc('users',fbUser.uid);let snap=await FB.getDoc(ref);
+  if(isSA(fbUser.email,null)&&(!snap.exists()||snap.data().role!=='admin'||snap.data().status!=='active')){
+   await FB.setDoc(ref,{email:fbUser.email,name:(snap.exists()&&snap.data().name)||'Super Admin',role:'admin',status:'active',isSuperAdmin:true},{merge:true});
+   snap=await FB.getDoc(ref);
+  }
+  if(!snap.exists()){await FB.signOutUser();S.gm='A sua conta não tem um perfil associado. Contacte o administrador.';render();return}
+  const d=snap.data();
+  if(d.status!=='active'){await FB.signOutUser();S.gm=d.status==='suspended'?'O seu acesso foi suspenso pelo administrador.':'A sua conta está Pendente de Aprovação. Aguarde a validação de um administrador.';render();return}
+  await enterSession(fbUser,d);
+  watchOwnDoc(fbUser.uid);
+ }catch(e){S.gm=fbErrorMsg(e);render()}
+}
+async function doLogin(){
+ if(S.lock>Date.now())return gmsg('Demasiadas tentativas falhadas. Aguarde 30 segundos.');
+ const email=$('#g_u').value.trim().toLowerCase(),p=$('#g_p').value;S.gv.u=email;
+ if(!validEmail(email))return gmsg('Indique um email válido.');
+ try{await FB.signIn(email,p)}catch(e){if(++S.fails%5===0)S.lock=Date.now()+30000;gmsg(fbErrorMsg(e))}
+}
+async function doReg(){
+ const n=$('#g_n').value.trim(),email=$('#g_u').value.trim().toLowerCase(),p=$('#g_p').value;S.gv={u:email,n};
+ if(n.length<2||!validEmail(email)||p.length<8)return gmsg('Indique o nome, um email válido e uma password com pelo menos 8 caracteres.');
+ REGISTERING=true;
+ try{
+  const cred=await FB.createUser(email,p);
+  await FB.setDoc(FB.doc('users',cred.user.uid),{email,name:n,role:'viewer',status:'pending',createdAt:FB.serverTimestamp()});
+  try{await FB.signOutUser()}catch(e){}
+  S.gv={u:'',n:''};S.gt='in';
+  gmsg('Registo concluído! Aguarde que o Administrador aprove a sua conta no sistema.','ok')
+ }catch(e){gmsg(fbErrorMsg(e))}
+ finally{REGISTERING=false}
+}
+function logout(){leaveSession()}
+async function uAct(k,uid){
+ const me=S.udoc;if(!me||me.status!=='active'||me.role!=='admin')return;
+ const x=S.usersList.find(y=>y.id===uid);if(!x||x.isSuperAdmin||x.id===S.fbUser.uid)return;
+ try{
+  if(k==='ap'&&x.status==='pending'){const r=document.getElementById('pr_'+uid).value;if(!PW[r])return;await FB.updateDoc(FB.doc('users',uid),{role:r,status:'active'});x.role=r;x.status='active';S.msg='Utilizador '+x.email+' aprovado como '+PW[r]+'.'}
+  else if(k==='rj'&&x.status==='pending'){await FB.deleteDoc(FB.doc('users',uid));S.usersList=S.usersList.filter(y=>y.id!==uid);S.msg='Registo de '+x.email+' rejeitado.'}
+  else if(isSA(S.fbUser.email,me)&&x.status!=='pending'&&k==='rv'){await FB.updateDoc(FB.doc('users',uid),{status:'suspended'});x.status='suspended';S.msg='Acesso de '+x.email+' suspenso.'}
+  else if(isSA(S.fbUser.email,me)&&x.status==='suspended'&&k==='ra'){await FB.updateDoc(FB.doc('users',uid),{status:'active'});x.status='active';S.msg='Acesso de '+x.email+' reativado.'}
+  else if(isSA(S.fbUser.email,me)&&x.status!=='pending'&&k==='du'){if(!confirm('Eliminar permanentemente o utilizador «'+x.email+'» («'+(x.name||x.email)+'»)? Esta ação remove o perfil na base de dados; a conta de autenticação tem de ser removida à parte na Firebase Console. Não pode ser desfeita.'))return;await FB.deleteDoc(FB.doc('users',uid));S.usersList=S.usersList.filter(y=>y.id!==uid);S.msg='Utilizador '+x.email+' eliminado permanentemente.'}
+  else return;
+  render()
+ }catch(e){S.msg='Não foi possível concluir a operação: '+fbErrorMsg(e);render()}
+}
+async function setRole(uid,r){
+ const me=S.udoc;if(!me||!isSA(S.fbUser&&S.fbUser.email,me)||me.status!=='active'||!PW[r])return;
+ const x=S.usersList.find(y=>y.id===uid);if(!x||x.isSuperAdmin||x.status!=='active')return;
+ try{await FB.updateDoc(FB.doc('users',uid),{role:r});x.role=r;S.msg='Papel de '+x.email+' alterado para '+PW[r]+'.';render()}
+ catch(e){S.msg='Não foi possível alterar o papel: '+fbErrorMsg(e);render()}
+}
+function vUsr(){
+ const a=S.usersList,me=S.udoc,sa=!!(me&&isSA(S.fbUser&&S.fbUser.email,me)),pd=a.filter(x=>x.status==='pending'),ac=a.filter(x=>x.status!=='pending'),op=v=>['admin','editor'].map(k=>`<option value="${k}"${k===v?' selected':''}>${PW[k]}</option>`).join('');
+ return `<div class="cd"><h4>Registos pendentes (${pd.length})</h4>${pd.length?`<div class="sc"><table><tr><th>Nome</th><th>Email</th><th>Papel</th><th></th></tr>${pd.map(x=>`<tr><td>${he(x.name||'')}</td><td>${he(x.email)}</td><td><select id="pr_${he(x.id)}">${op('editor')}</select></td><td><button data-act="ap:${he(x.id)}">Aprovar</button> <button class="dg" data-act="rj:${he(x.id)}">Rejeitar</button></td></tr>`).join('')}</table></div>`:'<p>Sem registos pendentes.</p>'}</div>
+<div class="cd"><h4>Utilizadores ativos (${ac.length})</h4>${sa?'':'<p><small>Só o Super Admin pode alterar papéis, suspender ou eliminar contas.</small></p>'}<div class="sc"><table><tr><th>Nome</th><th>Email</th><th>Estado</th><th>Papel</th><th>Kill Switch</th></tr>${ac.map(x=>{const own=!!x.isSuperAdmin;return `<tr><td>${he(x.name||'')}</td><td>${he(x.email)}</td><td>${x.status==='active'?'Ativo':'Suspenso'}</td><td>${sa&&!own&&x.status==='active'?`<select data-urole="${he(x.id)}">${op(x.role)}</select>`:PW[x.role]}</td><td>${own?'<small>Super Admin (protegido)</small>':sa?`${x.status==='active'?`<button class="dg" data-act="rv:${he(x.id)}">Revogar Acesso/Suspender</button>`:`<button data-act="ra:${he(x.id)}">Reativar</button>`} <button class="dg" data-act="du:${he(x.id)}" title="Eliminar permanentemente o perfil no Firestore">🗑 Eliminar</button>`:''}</td></tr>`}).join('')}</table></div></div>
+<div class="cd"><h4>Limites desta gestão</h4><p>Os utilizadores ficam na coleção <code>users</code> do Firestore, partilhada entre todos os dispositivos — já não dependem do navegador de cada pessoa. A autorização real (quem pode aprovar, suspender ou eliminar) é imposta pelas Regras de Segurança do Firestore, não só pela interface. Eliminar aqui remove o perfil e bloqueia o acesso à aplicação, mas a conta de autenticação (email/password) só é removida à parte, na Firebase Console — o SDK do cliente não tem permissão para apagar contas de outras pessoas.</p></div>`}
+function alerts(c,sc,r){const A=[],B=r.B,avg=B.n?sum(B.s.r)/B.n:sum(B.s.b)/12,pr=(m,x)=>sc.p3.find(p=>p.d&&p.cats.map(Number).includes(x)&&m>=p.mes&&m<p.mes+p.n);
+ r.avisos.forEach(a=>A.push({lv:'a',a:'Promoções',m:a}));
+ if(!(r.fi||r.P3.some(x=>x)))return A.concat(r.rCom<0?[{lv:'r',a:'Resultado',m:'Resultado operacional negativo.'}]:[]);
+ c.cat.forEach((k,x)=>{const s=DATA.stk[k.nome];if(!s)return;let w=null;for(let m=c.mi;m<=12;m++){const p=pr(m,x),um=(B.fatBase[m-1]+r.P1[m-1]+r.P2[m-1])/avg*(p?1+c.prm.elast*p.d:1),d=s.stock/(s.qm*um)*30;if(!w||d<w.d)w={d,m,um}}
+  if(w&&w.d<s.rep*1.25)A.push({lv:w.d<s.rep?'r':'a',a:'Logística',m:`«${k.nome}»: em ${mn[w.m-1]} a procura sobe para ×${w.um.toFixed(2)} da média de jan.–jun.; o stock (${s.stock} un.) cobre ${Math.round(w.d)} dias, face a ${s.rep} dias de reposição.`})});
+ let rec=0;M12.forEach(m=>{rec+=(r.P1[m-1]+r.P2[m-1]+r.P3[m-1])*Math.max(0,Math.min(1,(c.cf.pmr-(12-m)*30)/30))});
+ const ex=r.ci+rec;if(r.rSem>0&&ex>.25*r.rSem)A.push({lv:ex>.5*r.rSem?'r':'a',a:'Tesouraria',m:`Custos incrementais (${eur(r.ci)}) + faturação por receber a 31/12 com PMR de ${c.cf.pmr} dias (${eur(rec)}) = ${eur(ex)}, ou seja ${pc(ex/r.rSem,0)} do resultado operacional sem medidas.`});
+ sc.p3.forEach((p,i)=>{if(p.d&&p.cats.length&&p.mes+p.n-1>=11&&c.cf.pmr>=30)A.push({lv:'a',a:'Tesouraria',m:`Promoção ${i+1}: as vendas de novembro/dezembro só são cobradas em janeiro/fevereiro (PMR ${c.cf.pmr} dias), já com ${pc(p.d,0)} de desconto.`})});
+ if(r.rCom<0)A.push({lv:'r',a:'Resultado',m:'Resultado operacional negativo com as medidas.'});return A}
+const alHtml=A=>A.length?A.map(a=>`<div class="al ${a.lv}"><b>${a.a}</b> · ${a.m}</div>`).join(''):'<p>Sem alertas de risco.</p>';
+function healthBar(r,c,A){const red=A.filter(a=>a.lv==='r').length,reached=r.pct>=.999,st=reached?(r.resi>0&&red===0?'ok':'toxic'):'progress',cap=Math.max(c.cresc*1.5,r.var*1.05,.01),fp=Math.max(0,Math.min(1,r.var/cap))*100,tp=Math.min(100,c.cresc/cap*100),lbl=st==='ok'?'Crescimento saudável':st==='toxic'?'Crescimento tóxico':'Em progresso';
+ return `<div class="hb ${st}"><div class="hbt"><b>${lbl}</b><span>${pc(r.var)} de crescimento · meta ${pc(c.cresc)}</span></div><div class="hbtrack"><div class="hbfill" style="width:${fp}%"></div><div class="hbmark" style="left:${tp}%"></div></div><small>${st==='toxic'?(r.resi<=0?'A meta é atingida, mas o resultado incremental é negativo. ':'')+(red>0?'Há '+red+' alerta(s) vermelho(s) de risco.':''):st==='ok'?'Meta atingida com resultado positivo e sem alertas vermelhos.':'Ainda não atinge a meta com os pressupostos atuais.'}</small></div>`}
+function breakEven(c,B,sc){const mp=mpond(c),net=mp-c.cf.transp,S=sazon(c,B),Rp=c.nov.ramp,cm=custoNovo(c),N=30,cost=Array(N+2).fill(0),marg=Array(N+2).fill(0);let inv=false;
+ sc.p1.forEach(v=>{if(!v.n||!v.h)return;inv=true;for(let k=1;k<=24;k++){const m=v.h+k-1,e=m-c.mi+1;if(e<1||e>N+1)continue;const f=refProd(c)*S(m)*Rp[Math.min(k,10)-1]*(1-c.nov.canib),cu=cm+c.nov.comissao*f+(k===1?custoEntrada(c):0);marg[e]+=f*v.n*net;cost[e]+=cu*v.n}});
+ sc.p2.forEach(k=>{const ch=c.canais[k.canal];if(!ch||!k.orc||!k.mes)return;inv=true;const e0=k.mes-c.mi+1;if(e0>=1&&e0<=N+1)cost[e0]+=k.orc;const{nc}=p2Leads(c,ch,k.orc),s=k.mes+ch.desf;for(let i=1;i<=24;i++){const m=s+i-1,e=m-c.mi+1;if(e<1||e>N+1)continue;const f=nc*c.mkt.compra*(i<=6?1:c.mkt.ret);marg[e]+=f*net}});
+ if(!inv)return{inv:false};
+ let cc=0,cm2=0,found=0;for(let e=1;e<=N;e++){cc+=cost[e];cm2+=marg[e];if(cc>0&&cm2>=cc){found=e;break}}
+ const y1len=12-c.mi+1;
+ if(!found)return{inv:true,found:false};
+ const am=c.mi+found-1,cal=((am-1)%12)+1,yi=Math.floor((am-1)/12);
+ return{inv:true,found:true,e:found,ano2:found>y1len,label:mn[cal-1]+' de '+(c.meta+yi)}}
+function beCard(be){if(!be.inv)return `<div class="cd"><h4>Break-even (P1+P2)</h4><p>Sem investimento em força de vendas ou marketing neste cenário.</p></div>`;
+ if(!be.found)return `<div class="cd"><h4>Break-even (P1+P2)</h4><p class="w">O investimento não se paga em 24 meses, com os pressupostos atuais.</p></div>`;
+ return `<div class="cd"><h4>Break-even (P1+P2)</h4><p><b>Break-even atingido no mês ${be.e}${be.ano2?' (empurrado para o Ano 2)':''}</b> do investimento — ${be.label}.</p></div>`}
+const XC={navy:'FF1F3864',gray:'FFF2F2F2',dark:'FF262626',border:'FFBFBFBF',green:'FF1E8A5A',red:'FFB3362F',totalBg:'FFF0E9D6',totalLine:'FF1F3864'};
+const thinBorder={top:{style:'thin',color:{argb:XC.border}},left:{style:'thin',color:{argb:XC.border}},bottom:{style:'thin',color:{argb:XC.border}},right:{style:'thin',color:{argb:XC.border}}};
+const xFill=argb=>({type:'pattern',pattern:'solid',fgColor:{argb}});
+function xTitle(cell,text){cell.value=text;cell.font={bold:true,color:{argb:'FFFFFFFF'},size:14};cell.fill=xFill(XC.navy);cell.alignment={vertical:'middle',horizontal:'left'}}
+function xSub(cell,text){cell.value=text;cell.font={italic:true,color:{argb:'FF595959'},size:10};cell.fill=xFill(XC.gray);cell.alignment={vertical:'middle',horizontal:'left'}}
+function xSection(cell,text){cell.value=text;cell.font={bold:true,color:{argb:'FFFFFFFF'},size:11};cell.fill=xFill(XC.dark);cell.alignment={vertical:'middle',horizontal:'left'}}
+function xHdr(cell,text){cell.value=text;cell.font={bold:true,color:{argb:'FFFFFFFF'},size:11};cell.fill=xFill(XC.dark);cell.alignment={vertical:'middle',horizontal:'center'};cell.border=thinBorder}
+async function xlsxExport(){
+ if(typeof ExcelJS==='undefined'){S.msg='A biblioteca de exportação para Excel não carregou (verifique a ligação à internet). Pode usar a exportação em PDF entretanto.';render();return}
+ const c=S.cfg,r=calc(c,S.sc),B=r.B;
+ try{
+ const wb=new ExcelJS.Workbook();wb.creator='Simulador Âmbar e Sal';wb.created=new Date();
+
+ // ---------- Sheet 1: Dashboard ----------
+ const ws=wb.addWorksheet('Dashboard');
+ ws.mergeCells('A1:E1');xTitle(ws.getCell('A1'),'Relatório Executivo - '+c.nome);
+ ws.mergeCells('A2:E2');xSub(ws.getCell('A2'),(c.equipa?c.equipa+' · ':'')+'Meta '+c.meta+': crescer '+Math.round(c.cresc*100)+'% face a '+c.base+' · gerado em '+new Date().toLocaleDateString('pt-PT'));
+ ws.getRow(1).height=22;ws.getRow(2).height=18;
+ let row=4;const aTexts=[],bTexts=[];
+ ws.mergeCells('A'+row+':E'+row);xSection(ws.getCell('A'+row),'Indicadores de Performance');row++;
+ xHdr(ws.getCell('A'+row),'Indicador');xHdr(ws.getCell('B'+row),'Valor');row++;
+ const negOk=new Set(['Distância à meta','Variação face a '+c.base,'Resultado incremental','Efeito no ano seguinte','Resultado operacional sem medidas','Resultado operacional com medidas']);
+ const kpis=[
+  ['Estado',r.ok?'Meta atingida':'Meta não atingida','txt'],
+  ['% da meta',r.pct,'PCT'],
+  ['Faturação total '+c.meta,r.fat,'EUR'],
+  ['Variação face a '+c.base,r.var,'PCT'],
+  ['Distância à meta',r.dist,'EUR'],
+  ['Faturação incremental',r.fi,'EUR'],
+  ['Custos incrementais',r.ci,'EUR'],
+  ['Desconto concedido',r.desc,'EUR'],
+  ['Margem bruta incremental',r.mbi,'EUR'],
+  ['Resultado incremental',r.resi,'EUR'],
+  ['ROI',r.roi,'X'],
+  ['Custo por € de faturação adicional',r.cpe,'NUM2'],
+  ['Valor a 24 meses (P1+P2)',r.v24,'EUR'],
+  ['Efeito no ano seguinte',r.prox,'EUR'],
+  ['Resultado operacional sem medidas',r.rSem,'EUR'],
+  ['Resultado operacional com medidas',r.rCom,'EUR']
+ ];
+ kpis.forEach(([l,v,f])=>{
+  const cl=ws.getCell('A'+row),cv=ws.getCell('B'+row);
+  cl.value=l;cl.font={bold:true};cl.alignment={horizontal:'left'};cl.border=thinBorder;
+  cv.value=v;cv.alignment={horizontal:'right'};cv.border=thinBorder;
+  if(f==='EUR')cv.numFmt='#,##0.00" €"';else if(f==='PCT')cv.numFmt='0.00%';else if(f==='X')cv.numFmt='0.00"x"';else if(f==='NUM2')cv.numFmt='0.00" €"';else cv.alignment={horizontal:'left'};
+  if(f!=='txt'&&negOk.has(l)&&typeof v==='number')cv.font={bold:true,color:{argb:v<0?XC.red:XC.green}};
+  aTexts.push(l);bTexts.push(f==='txt'?String(v):(typeof v==='number'?v.toFixed(2):String(v)));
+  row++
+ });
+ row++;
+ ws.mergeCells('A'+row+':E'+row);xSection(ws.getCell('A'+row),'Medidas configuradas neste cenário');row++;
+ xHdr(ws.getCell('A'+row),'Alavanca');xHdr(ws.getCell('B'+row),'Detalhe');row++;
+ let any=false;
+ const addMed=(a,b)=>{const ca=ws.getCell('A'+row),cb=ws.getCell('B'+row);ca.value=a;ca.font={bold:true};ca.border=thinBorder;cb.value=b;cb.alignment={horizontal:'left'};cb.border=thinBorder;aTexts.push(a);bTexts.push(b);row++;any=true};
+ S.sc.p1.filter(v=>v.n).forEach((v,i)=>addMed('P1 — Vaga '+(i+1),v.n+' comercial(is) a partir de '+mn[v.h-1]));
+ S.sc.p2.filter(k=>k.orc).forEach((k,i)=>addMed('P2 — Campanha '+(i+1),c.canais[k.canal].nome+' · '+eur(k.orc)+' · '+mn[k.mes-1]));
+ S.sc.p3.filter(p=>p.d&&p.cats.length).forEach((p,i)=>addMed('P3 — Promoção '+(i+1),pc(p.d,0)+' em '+p.cats.length+' categoria(s), a partir de '+mn[p.mes-1]+' ('+p.n+' mês/meses)'));
+ if(!any)addMed('—','Sem medidas configuradas neste cenário.');
+ row++;
+ ws.mergeCells('A'+row+':E'+row);
+ const noteCell=ws.getCell('A'+row);noteCell.value='Nota: valores calculados pelo simulador a partir dos pressupostos configurados; ver a aba "Pressupostos e fórmulas" da aplicação para as fórmulas. Sem fórmulas Excel — ficheiro de leitura/auditoria.';
+ noteCell.font={italic:true,color:{argb:'FF777777'},size:9};
+
+ const widthOf=arr=>arr.length?Math.min(Math.max(...arr.map(x=>String(x).length))+3,70):12;
+ ws.getColumn(1).width=Math.max(widthOf(aTexts),36);
+ ws.getColumn(2).width=Math.max(widthOf(bTexts),16);
+ ws.getColumn(3).width=12;ws.getColumn(4).width=12;ws.getColumn(5).width=12;
+
+ // ---------- Sheet 2: Dados Mensais ----------
+ const ws2=wb.addWorksheet('Dados Mensais');
+ const head=['Mês','Faturação base','P1','P2','P3','Simulado','Meta mensal'];
+ head.forEach((h,i)=>xHdr(ws2.getCell(1,i+1),h));
+ const mrows=M12.map(m=>[mn[m-1],B.fatBase[m-1],r.P1[m-1],r.P2[m-1],r.P3[m-1],r.sim[m-1],r.metaMes[m-1]]);
+ mrows.forEach((rw,ri)=>{rw.forEach((v,ci)=>{const cell=ws2.getCell(ri+2,ci+1);cell.value=v;cell.border=thinBorder;if(ci===0)cell.alignment={horizontal:'left'};else{cell.numFmt='#,##0.00" €"';cell.alignment={horizontal:'right'}}})});
+ const totRow=mrows.length+2,totals=['Total',sum(B.fatBase),sum(r.P1),sum(r.P2),sum(r.P3),sum(r.sim),sum(r.metaMes)];
+ totals.forEach((v,ci)=>{const cell=ws2.getCell(totRow,ci+1);cell.value=v;cell.font={bold:true};cell.fill=xFill(XC.totalBg);cell.border={top:{style:'thin',color:{argb:XC.totalLine}},left:thinBorder.left,bottom:thinBorder.bottom,right:thinBorder.right};if(ci===0)cell.alignment={horizontal:'left'};else{cell.numFmt='#,##0.00" €"';cell.alignment={horizontal:'right'}}});
+ head.forEach((h,i)=>{const len=Math.max(h.length,...mrows.map(rw=>String(typeof rw[i]==='number'?rw[i].toFixed(2):rw[i]).length));ws2.getColumn(i+1).width=Math.max(len+3,i===0?10:14)});
+
+ const buf=await wb.xlsx.writeBuffer();
+ const blob=new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='simulador_ambar_e_sal_'+c.meta+'.xlsx';document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+ }catch(e){S.msg='Não foi possível gerar o ficheiro Excel neste ambiente. Tente novamente ou use a exportação em PDF.';render()}
+}
+function optimize(){const c=S.cfg,ms=M12.filter(m=>m>=c.mi),MULT=[.3,.5,.7,1,1.3,1.6,2,2.5,3];let s0=7;const rg=()=>(s0=(s0*1664525+1013904223)%4294967296)/4294967296,pk=a=>a[Math.floor(rg()*a.length)],clone=s=>JSON.parse(JSON.stringify(s));
+ function gen(){const s=emptySc();
+  if(rg()<.9){s.p1[0]={n:pk([1,2,3,4,5,6]),h:pk(ms.slice(0,4))};if(rg()<.35)s.p1[1]={n:pk([1,2,3]),h:pk(ms.slice(0,4))}}
+  const nn=pk([0,1,1,2,2,3]);for(let i=0;i<nn;i++){const ch=Math.floor(rg()*c.canais.length);s.p2[i]={canal:ch,orc:c.canais[ch].orc*pk(MULT),mes:pk(ms.slice(0,4))}}
+  if(rg()<.25){const n=pk([1,1,2]),cats=[];while(cats.length<n){const x=Math.floor(rg()*c.cat.length);if(!cats.includes(x))cats.push(x)}s.p3[0]={d:pk([.05,.08,.1]),cats,mes:pk(ms.slice(0,3)),n:pk([1,2])}}
+  return s}
+ const pool=[];for(let i=0;i<15000;i++){const s=gen(),r=calc(c,s);if(r.avisos.length)continue;const al=alerts(c,s,r);pool.push({s,r,red:al.filter(a=>a.lv==='r').length})}
+ if(!pool.length){S.msg='Não foi encontrada nenhuma combinação válida. Reveja os pressupostos.';return}
+ let feas=pool.filter(x=>x.r.resi>0&&x.red===0);if(!feas.length)feas=pool.filter(x=>x.r.resi>0);
+ feas.sort((a,b)=>b.r.pct-a.r.pct||b.r.roi-a.r.roi);let bestA=feas[0];
+ if(bestA){for(let it=0;it<3500;it++){const s=clone(bestA.s),i=Math.floor(rg()*3);
+   if(rg()<.75){const ch=Math.floor(rg()*c.canais.length);s.p2[i]={canal:ch,orc:c.canais[ch].orc*pk(MULT),mes:pk(ms.slice(0,4))}}else s.p2[i]={canal:0,orc:0,mes:9};
+   const r=calc(c,s);if(r.avisos.length)continue;const red=alerts(c,s,r).filter(a=>a.lv==='r').length;
+   if(r.resi>0&&red===0&&(r.pct>bestA.r.pct+1e-9||(Math.abs(r.pct-bestA.r.pct)<1e-9&&r.roi>bestA.r.roi)))bestA={s,r,red}}}
+ let hit=pool.filter(x=>x.r.pct>=1);hit.sort((a,b)=>b.r.resi-a.r.resi||a.red-b.red);const bestB=hit[0];
+ const chosen=bestA||{s:emptySc(),r:calc(c,emptySc()),red:0};S.sc=chosen.s;S.tab='res';
+ const over=chosen.s.p2.filter(k=>k.orc&&c.canais[k.canal]&&k.orc>c.canais[k.canal].hmax);
+ let m=`Otimizador (restrição: resultado incremental > 0, alertas vermelhos minimizados, prioridade a P1/P2): entre ${pool.length} combinações testadas e refinadas, a melhor combinação lucrativa atinge ${pc(chosen.r.pct)} da meta de ${pc(c.cresc,0)}, com resultado incremental de ${eur(chosen.r.resi)} e ROI de ${chosen.r.roi.toFixed(2).replace('.',',')}${chosen.red?', mas ainda com '+chosen.red+' alerta(s) vermelho(s)':', sem alertas vermelhos'}.`;
+ if(chosen.r.pct<.995){
+  m+=` Com esta empresa, o histórico não sustenta lucro suficiente em 12 meses para fechar sozinho o desvio de ${eur(chosen.r.B?chosen.r.B.desvio:0)}: quase todas as alavancas testadas (comerciais, feiras, promoções) custam mais no primeiro ano do que rendem.`;
+  if(bestB)m+=` Se preferirem garantir os ${pc(c.cresc,0)} de crescimento aceitando prejuízo, a melhor combinação testada custaria ${eur(-bestB.r.resi)} em resultado incremental${bestB.red?' e ainda deixaria '+bestB.red+' alerta(s) vermelho(s)':''}.`;
+ }
+ if(over.length)m+=` Atenção: ${over.length} campanha(s) sugerida(s) tem orçamento acima do máximo já investido historicamente nesse canal — é uma extrapolação, não um valor testado.`;
+ m+=' Reveja os pressupostos antes de decidir.';S.msg=m}
+
+function vAdm(){return `<div class="cd"><h4>Segurança real (Firebase)</h4><p>A autenticação (email/password) e a autorização (quem pode aprovar, mudar papéis, suspender ou eliminar) são agora impostas do lado do servidor pelas Regras de Segurança do Firestore — não apenas pela interface. Ainda assim, a chave <code>apiKey</code> do Firebase é pública por natureza (fica visível no código do browser) e isso é normal e seguro: quem protege os dados são as Regras, não o segredo da chave. Duas limitações a conhecer: (1) o SDK do cliente não pode desativar nem eliminar a conta de autenticação de outra pessoa — só o perfil na coleção <code>users</code>; para remover mesmo a conta é preciso a Firebase Console ou uma Cloud Function; (2) sem verificação de email ativada, qualquer endereço pode registar-se (fica sempre Pendente até um administrador aprovar).</p></div>
+<div class="cd"><h4>Publicar de graça</h4><p><b>GitHub Pages:</b> 1) criar repositório público; 2) carregar este ficheiro com o nome <code>index.html</code>; 3) Settings › Pages › Deploy from a branch › main › / (root); 4) esperar 1 a 2 minutos; o link fica <code>https://utilizador.github.io/repositorio/</code>.<br><b>Cloudflare Pages:</b> Workers &amp; Pages › Create › Pages › Upload assets › carregar a pasta com <code>index.html</code>.<br><b>Firebase (obrigatório antes de publicar):</b> criar um projeto em console.firebase.google.com; ativar Authentication › Sign-in method › Email/Password; ativar Firestore Database (modo produção); publicar as Regras de Segurança fornecidas (<code>firestore.rules</code>); copiar as credenciais da app Web para o bloco <code>firebaseConfig</code> no topo deste ficheiro; iniciar sessão uma vez com o email definido em <code>SUPER_ADMIN_EMAIL</code> para o perfil de Super Admin se autoconfigurar.</p></div>`}
+function svgChart(r){const B=r.B,W=760,H=210,p=34,S1=[['Ano base',B.s.b,'#8a94a6',''],['Cenário base',B.fatBase,'#c58b1a','5 4'],['Simulado',r.sim,'#1e8a5a',''],['Meta mensal',r.metaMes,'#b3362f','2 3']],all=[].concat(...S1.map(x=>x[1])),mx=Math.max(...all)*1.05,mi=Math.min(...all)*.9,X=i=>p+i*(W-2*p)/11,Y=v=>H-24-(v-mi)/(mx-mi)*(H-44);
+ return `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Faturação mensal">${[0,1,2,3].map(k=>{const v=mi+(mx-mi)*k/3;return `<line x1="${p}" x2="${W-p}" y1="${Y(v)}" y2="${Y(v)}" stroke="#e1e5ec"/><text x="${p-4}" y="${Y(v)+3}" font-size="9" text-anchor="end" fill="#556">${Math.round(v/1000)}k</text>`}).join('')}${mn.map((m,i)=>`<text x="${X(i)}" y="${H-10}" font-size="9" text-anchor="middle" fill="#556">${m}</text>`).join('')}${S1.map(([l,a,c,d],j)=>`<polyline fill="none" stroke="${c}" stroke-width="2" stroke-dasharray="${d}" points="${a.map((v,i)=>X(i)+','+Y(v)).join(' ')}"/><text x="${p+j*130}" y="10" font-size="10" fill="${c}">— ${l}</text>`).join('')}</svg>`}
+function report(){const c=S.cfg,r=calc(c,S.sc),A=alerts(c,S.sc,r),s=S.sc,j=(a,f)=>a.length?a.map(f).join('; '):'—';
+ return `<div class="rp"><h2>Relatório executivo · ${esc(c.nome)}</h2><p>${c.equipa?esc(c.equipa)+' · ':''}Meta ${c.meta}: +${pc(c.cresc,0)} face a ${c.base} = ${eur(r.B.meta)} · gerado em ${new Date().toLocaleDateString('pt-PT')}</p><div class="st ${r.ok?'ok':'no'}">${r.ok?'Meta atingida':'Meta não atingida'} · ${pc(r.pct)} da meta · faturação ${eur(r.fat)}</div>
+<div class="kp">${[['Distância à meta',eur(r.dist)],['Fat. incremental',eur(r.fi)],['Custos + desconto',eur(r.ci+r.desc)],['Resultado incremental',eur(r.resi)],['ROI',r.roi.toFixed(2).replace('.',',')],['Valor a 24 meses (P1+P2)',eur(r.v24)],['Op. sem medidas',eur(r.rSem)],['Op. com medidas',eur(r.rCom)]].map(([a,b])=>kp(a,b)).join('')}</div>${svgChart(r)}
+<p><b>P1:</b> ${j(s.p1.filter(v=>v.n),v=>v.n+' comerciais em '+mn[v.h-1])}<br><b>P2:</b> ${j(s.p2.filter(k=>k.orc),k=>c.canais[k.canal].nome+' '+eur(k.orc)+' ('+mn[k.mes-1]+')')}<br><b>P3:</b> ${j(s.p3.filter(p=>p.d&&p.cats.length),p=>pc(p.d,0)+' em '+p.cats.length+' categorias, '+mn[p.mes-1]+' ('+p.n+' m.)')}</p><h4>Alertas de risco</h4>${alHtml(A.slice(0,6))}${A.length>6?`<small>+ ${A.length-6} alerta(s) no simulador. </small>`:''}<small>Modelo com pressupostos do Excel; alavancas somadas sem interações.</small></div>`}
+function render(){if(S.authLoading||(!S.fbUser&&S.showGate)){S.in=false;document.body.classList.add('gated');renderGate();return}S.in=true;document.body.classList.remove('gated');const y=window.scrollY;if(!TABS[S.role].includes(S.tab))S.tab=TABS[S.role][0];const r=calc(S.cfg,S.sc),A=alerts(S.cfg,S.sc,r),V={cfg:vCfg,p1:vP1,p2:vP2,p3:vP3,res:vRes,cmp:vCmp,pres:vPres,adm:vAdm,usr:vUsr,set:vSet};
+ $('#who').innerHTML=whoBar();$('#msg').innerHTML=S.msg?`<div class="al a">${S.msg}</div>`:'';
+ $('#sum').innerHTML=summary(r)+`<p><span class="pill ${!A.length?'gr':A.some(a=>a.lv==='r')?'rd':'am'}">${A.length?A.length+' alerta(s) de risco':'Sem alertas de risco'}</span></p>`;
+ $('#view').innerHTML=V[S.tab](r);document.querySelectorAll('nav button').forEach(b=>{b.hidden=!TABS[S.role].includes(b.dataset.t);b.classList.toggle('on',b.dataset.t===S.tab)});$('#navwrap').classList.toggle('open',S.navOpen);document.querySelector('.app').classList.toggle('sidebar-collapsed',S.sideCollapsed);
+ if(S.role==='viewer')document.querySelectorAll('#view input,#view select,#view textarea,#view [data-act]').forEach(e=>{if(e.dataset.act&&(e.dataset.act.startsWith('apply:')||e.dataset.act.startsWith('theme:')))return;e.disabled=true});
+ $('#ob').disabled=S.role==='viewer';
+ document.querySelectorAll('#view details').forEach(d=>{const k=d.querySelector('summary').textContent;if(k in S.op)d.open=S.op[k]});if(S.tab==='res')chart(r);window.scrollTo(0,y)}
+document.addEventListener('toggle',e=>{const d=e.target;if(d.tagName==='DETAILS'&&d.closest('#view'))S.op[d.querySelector('summary').textContent]=d.open},true);
+function ext(k,p){const R=()=>{render();return true};
+ if(['reset','exp','imp'].includes(k)&&S.role!=='admin')return true;
+ if(k==='gt'){S.gt=p;S.gm='';S.showGate=true;return R()}if(k==='lg'){doLogin();return true}if(k==='rg'){doReg();return true}if(k==='vw'){S.showGate=false;S.gm='';return R()}if(k==='theme'){setTheme(p);return true}
+ if(k==='out'){logout();return true}if(['ap','rj','rv','ra','du'].includes(k)){uAct(k,p);return true}
+ if(k==='xlsx'){handleXlsxClick();return true}
+ if(k==='rep'){handleRepClick();return true}
+ if(k==='opt'){if(S.role!=='viewer')optimize();return R()}
+ if(k==='apply'){cmdApplyScenario(p);return true}
+ return false}
+async function withBusyButton(sel,busyText,fn){
+ const btn=document.querySelector(sel),orig=btn?btn.textContent:'';
+ if(btn){btn.textContent=busyText;btn.disabled=true}
+ await new Promise(res=>setTimeout(res,50));
+ try{await fn()}finally{if(btn){btn.textContent=orig;btn.disabled=false}}
+}
+function handleXlsxClick(){withBusyButton('button[data-act="xlsx"]','A gerar…',xlsxExport)}
+function handleRepClick(){withBusyButton('button[data-act="rep"]','A gerar…',async()=>{
+ if(S.chart){try{S.chart.destroy()}catch(e){}S.chart=null}
+ try{window.print()}catch(e){S.msg='Não foi possível abrir a impressão aqui. Abra o simulador num separador próprio e use Ctrl/Cmd+P.';render()}
+})}
+
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&!S.in&&e.target.id&&e.target.id.startsWith('g_')){const b=document.querySelector('.gb .pr');b&&b.click()}});
+window.addEventListener('beforeprint',()=>{if(S.chart){try{S.chart.destroy()}catch(e){}S.chart=null}$('#rep').innerHTML=report()});
+window.addEventListener('afterprint',()=>{$('#rep').innerHTML='';render()});
+render();
+document.addEventListener('DOMContentLoaded',()=>{
+ window.FBReady.then(fb=>{
+  if(!fb||fb.fatal){S.authLoading=false;S.gm='Não foi possível ligar ao Firebase. Verifique a configuração (firebaseConfig) e a ligação à internet.';render();return}
+  FB=fb;
+  if(!fb.configured)S.gm='O Firebase ainda não está configurado (bloco firebaseConfig vazio no topo do ficheiro). Preencha as credenciais do seu projeto para poder criar contas e entrar.';
+  FB.onAuthStateChanged(onFbAuthChange);
+ });
+});
+</script></body></html>
+<!--
+GUIA DE PUBLICAÇÃO GRATUITA
+GitHub Pages: 1) criar repositório público; 2) carregar este ficheiro renomeado para index.html; 3) Settings > Pages > Deploy from a branch > main > / (root); 4) aguardar 1-2 min; link: https://utilizador.github.io/repositorio/
+Cloudflare Pages: Workers & Pages > Create > Pages > Upload assets > carregar a pasta com index.html.
+
+CONFIGURACAO OBRIGATORIA DO FIREBASE (antes de publicar):
+1. Criar um projeto em https://console.firebase.google.com
+2. Authentication > Sign-in method > ativar "Email/Password".
+3. Firestore Database > criar base de dados (modo producao).
+4. Firestore Database > Regras > colar o conteudo de firestore.rules (fornecido em separado) > Publicar.
+5. Definicoes do projeto > As suas aplicacoes > Web (</>) > copiar o objeto firebaseConfig para o topo deste ficheiro.
+6. No codigo, mudar a constante SUPER_ADMIN_EMAIL para o email que vai usar como Super Admin.
+7. Publicar o ficheiro e, na app publicada, registar uma conta com esse mesmo email: o proprio codigo promove-a automaticamente a Super Admin ativo na primeira vez que inicia sessao.
+Utilizadores e cenarios guardados na nuvem (Firestore), partilhados entre dispositivos. Autorizacao imposta tambem pelas Regras de Seguranca do Firestore, nao so pela interface.
+-->
